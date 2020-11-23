@@ -5618,6 +5618,10 @@ if __name__ == '__main__':
     main_parser = argparse.ArgumentParser(prog = 'Gaea.py', description='manages EGA submissions')
     subparsers = main_parser.add_subparsers(title='sub-commands', description='valid sub-commands', dest= 'subparser_name', help = 'sub-commands help')
 
+    # create info parser
+    info_parser = subparsers.add_parser('add_info', help ='Add information in EGASUB tables')
+    subsubparsers = info_parser.add_subparsers(title='add info sub-commands', description='valid sub-commands', dest= 'subsubparser_name', help = 'sub-commands help')
+
     # list files on the staging servers
     StagingServerParser = subparsers.add_parser('staging_server', help ='List file info on the staging servers', parents = [parent_parser])
     StagingServerParser.add_argument('-rt', '--RunsTable', dest='runstable', default='Runs', help='Submission database table. Default is Runs')
@@ -5669,18 +5673,18 @@ if __name__ == '__main__':
     CollectParser.add_argument('-u', '--URL', dest='URL', default="https://ega-archive.org/submission-api/v1", help='URL of the API to download metadata of registered objects')
 
     # add samples to Samples Table
-    AddSamplesParser = subparsers.add_parser('add_samples', help ='Add sample information to Samples Table', parents=[parent_parser])
+    AddSamplesParser = subsubparsers.add_parser('samples', help ='Add sample information to Samples Table', parents=[parent_parser])
     AddSamplesParser.add_argument('-t', '--Table', dest='table', default='Samples', help='Samples table. Default is Samples')
     AddSamplesParser.add_argument('-a', '--Attributes', dest='attributes', help='Primary key in the SamplesAttributes table', required=True)
     AddSamplesParser.add_argument('-i', '--Info', dest='info', help='Table with sample information to load to submission database', required=True)
     
     # add sample attributes to SamplesAttributes Table
-    AddSamplesAttributesParser = subparsers.add_parser('add_samples_attributes', help ='Add sample attributes information to SamplesAttributes Table', parents=[parent_parser])
+    AddSamplesAttributesParser = subsubparsers.add_parser('samples_attributes', help ='Add sample attributes information to SamplesAttributes Table', parents=[parent_parser])
     AddSamplesAttributesParser.add_argument('-t', '--Table', dest='table', default='SamplesAttributes', help='SamplesAttributes table. Default is SamplesAttributes')
     AddSamplesAttributesParser.add_argument('-i', '--Info', dest='info', help='File with sample attributes information', required=True)
     
     # add datasets to Datasets Table
-    AddDatasetsParser = subparsers.add_parser('add_datasets', help ='Add datasets information to Datasets Table', parents = [parent_parser])
+    AddDatasetsParser = subsubparsers.add_parser('datasets', help ='Add datasets information to Datasets Table', parents = [parent_parser])
     AddDatasetsParser.add_argument('-t', '--Table', dest='table', default='Datasets', help='Datasets table. Default is Datasets')
     AddDatasetsParser.add_argument('-a', '--Alias', dest='alias', help='Alias for the dataset', required=True)
     AddDatasetsParser.add_argument('-p', '--Policy', dest='policy', help='Policy Id. Must start with EGAP', required=True)
@@ -5692,14 +5696,14 @@ if __name__ == '__main__':
     AddDatasetsParser.add_argument('-at', '--Attributes', dest='attributes', help='Optional file with attributes')
     
     # add Run info to Runs Table
-    AddRunsParser = subparsers.add_parser('add_runs', help ='Add run information to Runs Table', parents = [parent_parser])
+    AddRunsParser = subsubparsers.add_parser('runs', help ='Add run information to Runs Table', parents = [parent_parser])
     AddRunsParser.add_argument('-t', '--Table', dest='table', default='Runs', help='Run table. Default is Runs')
     AddRunsParser.add_argument('-i', '--Info', dest='information', help='Table with required run information', required=True)
     AddRunsParser.add_argument('-f', '--FileTypeId', dest='file_type', help='Controlled vocabulary decribing the file type. Example: "One Fastq file (Single)" or "Two Fastq files (Paired)"', required=True)
     AddRunsParser.add_argument('-sp', '--StagePath', dest='stage_path', help='Directory on the staging server where files are uploaded', required=True)
     
     # add experiments to Experiments Table
-    AddExperimentParser = subparsers.add_parser('add_experiments', help ='Add experiments information to Experiments Table', parents = [parent_parser])
+    AddExperimentParser = subsubparsers.add_parser('experiments', help ='Add experiments information to Experiments Table', parents = [parent_parser])
     AddExperimentParser.add_argument('-t', '--Table', dest='table', default='Experiments', help='Experiments table. Default is Experiments')
     AddExperimentParser.add_argument('-i', '--Info', dest='information', help='Table with library and sample information', required=True)
     AddExperimentParser.add_argument('-tl', '--Title', dest='title', help='Short title', required=True)
@@ -5713,7 +5717,7 @@ if __name__ == '__main__':
     AddExperimentParser.add_argument('-la', '--Layout', dest='library', help='0 for paired and 1 for single end sequencing', required=True)
 
     # add Policy info to Policy Table
-    AddPolicyParser = subparsers.add_parser('add_policy', help ='Add Policy information to Policies Table', parents = [parent_parser])
+    AddPolicyParser = subsubparsers.add_parser('policy', help ='Add Policy information to Policies Table', parents = [parent_parser])
     AddPolicyParser.add_argument('-t', '--Table', dest='table', default='Policies', help='Policy table. Default is Policies')
     AddPolicyParser.add_argument('-a', '--Alias', dest='alias', help='Alias for the Policy', required=True)
     AddPolicyParser.add_argument('-d', '--DacId', dest='dacid', help='DAC Id or DAC alias', required=True)
@@ -5723,26 +5727,26 @@ if __name__ == '__main__':
     AddPolicyParser.add_argument('-u', '--Url', dest='url', help='Url')
     
     # add Study in to Studies table
-    AddStudyParser = subparsers.add_parser('add_study', help ='Add Study information to Studies Table', parents = [parent_parser])
+    AddStudyParser = subsubparsers.add_parser('study', help ='Add Study information to Studies Table', parents = [parent_parser])
     AddStudyParser.add_argument('-t', '--Table', dest='table', default='Studies', help='Studies table. Default is Studies')
     AddStudyParser.add_argument('-i', '--Input', dest='information', help='Table with required study information', required=True)
 
     # add DAC info to DACs Table
-    AddDACsParser = subparsers.add_parser('add_dac', help ='Add DAC information to DACs Table', parents = [parent_parser])
+    AddDACsParser = subsubparsers.add_parser('dac', help ='Add DAC information to DACs Table', parents = [parent_parser])
     AddDACsParser.add_argument('-t', '--Table', dest='table', default='Dacs', help='DACs table. Default is Dacs')
     AddDACsParser.add_argument('-i', '--Info', dest='information', help='Table with contact information', required=True)
     AddDACsParser.add_argument('-a', '--Alias', dest='alias', help='Alias for the DAC', required=True)
     AddDACsParser.add_argument('-tl', '--Title', dest='title', help='Short title for the DAC', required=True)
     
     # add analyses to Analyses Table
-    AddAnalysesParser = subparsers.add_parser('add_analyses', help ='Add analysis information to Analyses Table', parents = [parent_parser])
+    AddAnalysesParser = subsubparsers.add_parser('analyses', help ='Add analysis information to Analyses Table', parents = [parent_parser])
     AddAnalysesParser.add_argument('-t', '--Table', dest='table', default='Analyses', help='Analyses table. Default is Analyses')
     AddAnalysesParser.add_argument('-i', '--Info', dest='information', help='Table with analysis info to load to submission database', required=True)
     AddAnalysesParser.add_argument('-p', '--Project', dest='projects', help='Primary key in the AnalysesProjects table', required=True)
     AddAnalysesParser.add_argument('-a', '--Attributes', dest='attributes', help='Primary key in the AnalysesAttributes table', required=True)
     
     # add analyses attributes or projects to corresponding Table
-    AddAttributesProjectsParser = subparsers.add_parser('add_analyses_attributes', help ='Add information to AnalysesAttributes or AnalysesProjects Tables', parents = [parent_parser])
+    AddAttributesProjectsParser = subsubparsers.add_parser('analyses_attributes', help ='Add information to AnalysesAttributes or AnalysesProjects Tables', parents = [parent_parser])
     AddAttributesProjectsParser.add_argument('-t', '--Table', dest='table', choices = ['AnalysesAttributes', 'AnalysesProjects'], help='Database Tables AnalysesAttributes or AnalysesProjects', required=True)
     AddAttributesProjectsParser.add_argument('-i', '--Info', dest='information', help='File with attributes or projects information to load to submission database', required=True)
     AddAttributesProjectsParser.add_argument('-d', '--DataType', dest='datatype', choices=['Projects', 'Attributes'], help='Add Projects or Attributes infor to db')
@@ -5762,26 +5766,26 @@ if __name__ == '__main__':
         check_upload(args.object, args.credential, args.subdb, args.table, args.box, args.alias, args.jobnames, args.attributes)
     elif args.subparser_name == 'collect':
         collect_registered_metadata(args.credential, args.box, args.chunksize, args.URL, args.metadatadb)
-    elif args.subparser_name == 'add_samples':
+    elif args.subsubparser_name == 'samples':
         add_sample_info(args.credential, args.metadatadb, args.subdb, args.table, args.info, args.attributes, args.box)
-    elif args.subparser_name == 'add_samples_attributes':
+    elif args.subsubparser_name == 'samples_attributes':
         add_sample_attributes(args.credential, args.metadatadb, args.subdb, args.table, args.info, args.box)
-    elif args.subparser_name == 'add_datasets':
+    elif args.subsubparser_name == 'datasets':
         add_dataset_info(args.credential, args.subdb, args.metadatadb, args.table, args.alias, args.policy, args.description, args.title,
                          args.dataset_typeIds, args.accessions, args.datasets_links, args.attributes, args.box)
-    elif args.subparser_name == 'add_runs':
+    elif args.subsubparser_name == 'runs':
         add_runs_info(args.credential, args.metadatadb, args.subdb, args.table, args.information, args.file_type, args.stage_path, args.box)
-    elif args.subparser_name == 'add_experiments':
+    elif args.subsubparser_name == 'experiments':
         add_experiment_info(args.credential, args.subdb, args.metadatadb, args.table, args.information, args.title, args.study, 
                             args.description, args.instrument, args.selection, args.source, args.strategy, args.protocol, args.library, args.box)
-    elif args.subparser_name == 'add_policy':
+    elif args.subsubparser_name == 'policy':
         add_policy_info(args.credential, args.metadatadb, args.subdb, args.table, args.alias, args.dacid, args.title, args.policyfile, args.policytext, args.url, args.box)
-    elif args.subparser_name == 'add_study':
+    elif args.subsubparser_name == 'study':
         add_study_info(args.credential, args.metadatadb, args.subdb, args.table, args.information, args.box)
-    elif args.subparser_name == 'add_dac':
+    elif args.subsubparser_name == 'dac':
         add_dac_info(args.credential, args.metadatadb, args.subdb, args.table, args.alias, args.information, args.title, args.box)
-    elif args.subparser_name == 'add_analyses':
+    elif args.subsubparser_name == 'analyses':
         add_analyses_info(args.credential, args.metadatadb, args.subdb, args.table, args.information, args.projects, args.attributes, args.box)
-    elif args.subparser_name == 'add_analyses_attributes':
+    elif args.subsubparser_name == 'analyses_attributes':
         add_analyses_attributes_projects(args.credential, args.metadatadb, args.subdb, args.table, args.information, args.datatype, args.box)
         
