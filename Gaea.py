@@ -4100,7 +4100,7 @@ def collect_metadata(credential_file, box, ega_object, counts, chunk_size, URL="
             delete_records(credential_file, table_name, box, database)
             print('deleted rows in table {0} for box {1}'.format(table_name, box))
         # insert data into table
-        insert_metadata_table(credential_file, ega_object, metadata)         
+        insert_metadata_table(credential_file, ega_object, metadata, database)         
         print('inserted data in table {0} for box {1}'.format(table_name, box))    
           
         # collect data to form Link Tables    
