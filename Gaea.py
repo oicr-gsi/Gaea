@@ -3528,6 +3528,7 @@ def count_objects(username, password, URL):
     D = {}
     token = connect_to_api(username, password, URL)
     headers = {'X-Token': token}
+    URL = format_url(URL)
     for i in L:
         # connect to API
         response = requests.get(URL + i + '?status=SUBMITTED&skip=0&limit=10', headers=headers)
@@ -5766,26 +5767,27 @@ if __name__ == '__main__':
         check_upload(args.object, args.credential, args.subdb, args.table, args.box, args.alias, args.jobnames, args.attributes)
     elif args.subparser_name == 'collect':
         collect_registered_metadata(args.credential, args.box, args.chunksize, args.URL, args.metadatadb)
-    elif args.subsubparser_name == 'samples':
-        add_sample_info(args.credential, args.metadatadb, args.subdb, args.table, args.info, args.attributes, args.box)
-    elif args.subsubparser_name == 'samples_attributes':
-        add_sample_attributes(args.credential, args.metadatadb, args.subdb, args.table, args.info, args.box)
-    elif args.subsubparser_name == 'datasets':
-        add_dataset_info(args.credential, args.subdb, args.metadatadb, args.table, args.alias, args.policy, args.description, args.title,
-                         args.dataset_typeIds, args.accessions, args.datasets_links, args.attributes, args.box)
-    elif args.subsubparser_name == 'runs':
-        add_runs_info(args.credential, args.metadatadb, args.subdb, args.table, args.information, args.file_type, args.stage_path, args.box)
-    elif args.subsubparser_name == 'experiments':
-        add_experiment_info(args.credential, args.subdb, args.metadatadb, args.table, args.information, args.title, args.study, 
-                            args.description, args.instrument, args.selection, args.source, args.strategy, args.protocol, args.library, args.box)
-    elif args.subsubparser_name == 'policy':
-        add_policy_info(args.credential, args.metadatadb, args.subdb, args.table, args.alias, args.dacid, args.title, args.policyfile, args.policytext, args.url, args.box)
-    elif args.subsubparser_name == 'study':
-        add_study_info(args.credential, args.metadatadb, args.subdb, args.table, args.information, args.box)
-    elif args.subsubparser_name == 'dac':
-        add_dac_info(args.credential, args.metadatadb, args.subdb, args.table, args.alias, args.information, args.title, args.box)
-    elif args.subsubparser_name == 'analyses':
-        add_analyses_info(args.credential, args.metadatadb, args.subdb, args.table, args.information, args.projects, args.attributes, args.box)
-    elif args.subsubparser_name == 'analyses_attributes':
-        add_analyses_attributes_projects(args.credential, args.metadatadb, args.subdb, args.table, args.information, args.datatype, args.box)
+    elif args.subparser_name == 'add_info':
+        if args.subsubparser_name == 'samples':
+            add_sample_info(args.credential, args.metadatadb, args.subdb, args.table, args.info, args.attributes, args.box)
+        elif args.subsubparser_name == 'samples_attributes':
+            add_sample_attributes(args.credential, args.metadatadb, args.subdb, args.table, args.info, args.box)
+        elif args.subsubparser_name == 'datasets':
+            add_dataset_info(args.credential, args.subdb, args.metadatadb, args.table, args.alias, args.policy, args.description, args.title,
+                             args.dataset_typeIds, args.accessions, args.datasets_links, args.attributes, args.box)
+        elif args.subsubparser_name == 'runs':
+            add_runs_info(args.credential, args.metadatadb, args.subdb, args.table, args.information, args.file_type, args.stage_path, args.box)
+        elif args.subsubparser_name == 'experiments':
+            add_experiment_info(args.credential, args.subdb, args.metadatadb, args.table, args.information, args.title, args.study, 
+                                args.description, args.instrument, args.selection, args.source, args.strategy, args.protocol, args.library, args.box)
+        elif args.subsubparser_name == 'policy':
+            add_policy_info(args.credential, args.metadatadb, args.subdb, args.table, args.alias, args.dacid, args.title, args.policyfile, args.policytext, args.url, args.box)
+        elif args.subsubparser_name == 'study':
+            add_study_info(args.credential, args.metadatadb, args.subdb, args.table, args.information, args.box)
+        elif args.subsubparser_name == 'dac':
+            add_dac_info(args.credential, args.metadatadb, args.subdb, args.table, args.alias, args.information, args.title, args.box)
+        elif args.subsubparser_name == 'analyses':
+            add_analyses_info(args.credential, args.metadatadb, args.subdb, args.table, args.information, args.projects, args.attributes, args.box)
+        elif args.subsubparser_name == 'analyses_attributes':
+            add_analyses_attributes_projects(args.credential, args.metadatadb, args.subdb, args.table, args.information, args.datatype, args.box)
         
