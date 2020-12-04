@@ -4048,9 +4048,9 @@ def get_unique_records(L, ega_object):
     return K
 
 
-def collect_metadata(credential_file, box, ega_object, chunk_size, URL="https://ega-archive.org/submission-api/v1", database='EGA'):
+def collect_metadata(credential_file, box, ega_object, counts, chunk_size, URL="https://ega-archive.org/submission-api/v1", database='EGA'):
     '''
-    (str, str, int, str, )
+    (str, str, dict, int, str, )
     
     Dowonload the EGA object's metadata in chuncks of chunksize for a given box from
     the EGA API at URL and instert it into the EGA database 
@@ -4061,6 +4061,7 @@ def collect_metadata(credential_file, box, ega_object, chunk_size, URL="https://
     - box (str): EGA box (e.g. ega-box-xxx)
     - ega_object (str): Registered object at the EGA. Accepted values:
                         studies, runs, samples, experiments, datasets, analyses, policies, dacs
+    - counts (dict): Counts of registered EGA objects in the given box
     - chunk_size (int): Size of each chunk of data to download at once
     - URL (str): URL of the API Default is: "https://ega-archive.org/submission-api/v1"
     - database (str): Name of the database
@@ -4068,8 +4069,6 @@ def collect_metadata(credential_file, box, ega_object, chunk_size, URL="https://
     
     # get the database and box credentials
     credentials = extract_credentials(credential_file)
-    # count all objects registered in box
-    counts = count_objects(box, credentials[box], URL)
     # process if objects exist
     if counts[ega_object] != 0:
         # download all metadata for object in chunks
@@ -4149,10 +4148,14 @@ def collect_registered_metadata(credential_file, box, chunk_size, URL, metadata_
     - metadata_database (str): Database storing information about registered EGA objects
     '''
     
+    # count all objects registered in box
+    credentials = extract_credentials(credential_file)
+    counts = count_objects(box, credentials[box], URL)
+        
     ega_objects = ['studies', 'runs', 'samples', 'experiments', 'datasets', 'analyses', 'policies', 'dacs']
     for i in ega_objects:
         try:
-            collect_metadata(credential_file, box, i, chunk_size, URL, metadata_database)
+            collect_metadata(credential_file, box, i, counts, chunk_size, URL, metadata_database)
         except:
             print('## ERROR ## Could not add {0} metadata for box {1} into EGA database'.format(i, box))
 
