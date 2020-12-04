@@ -3583,6 +3583,9 @@ def download_metadata(username, password, URL, ega_object, count, chunk_size):
     - chunk_size (int): Size of each chunk of data to download at once
     '''
     
+    # format URL
+    URL = format_url(URL)
+        
     # collect all instances of ega_object  
     L = []
     # get the right range limit
