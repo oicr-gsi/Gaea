@@ -4090,7 +4090,7 @@ def collect_metadata(credential_file, box, ega_object, counts, chunk_size, URL="
         # get the table name    
         table_name = ega_object.title()   
         # make a list of tables
-        tables = show_tables(credential_file)
+        tables = show_tables(credential_file, database)
         if table_name not in tables:
             # create table
             create_table(credential_file, ega_object, database)
