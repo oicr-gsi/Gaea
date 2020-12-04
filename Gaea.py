@@ -4159,29 +4159,7 @@ def collect_registered_metadata(credential_file, box, chunk_size, URL, metadata_
         except:
             print('## ERROR ## Could not add {0} metadata for box {1} into EGA database'.format(i, box))
 
-########### add info in submssion table
-            
-                  
-# -*- coding: utf-8 -*-
-"""
-Created on Wed Mar  6 18:51:04 2019
 
-@author: rjovelin
-"""
-
-# import modules
-import os
-import argparse
-# import functions 
-from Gaea import *
-
-# resource for json formatting and api submission
-#https://ega-archive.org/submission/programmatic_submissions/json-message-format
-#https://ega-archive.org/submission/programmatic_submissions/submitting-metadata
-
-
-## functions specific to Analyses objects =====================================
-    
 def parse_analysis_input_table(table):
     '''
     (str) -> list
