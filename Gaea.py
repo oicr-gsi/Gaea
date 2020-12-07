@@ -4116,7 +4116,7 @@ def collect_metadata(credential_file, box, ega_object, counts, chunk_size, URL="
                 delete_records(credential_file, 'Datasets_RunsAnalysis', box, database)
                 print('deleted rows in Datasets_RunsAnalysis junction table')
             # instert data into junction table
-            instert_info_link_table(credential_file, 'Datasets_RunsAnalysis', D, box)
+            instert_info_link_table(credential_file, 'Datasets_RunsAnalysis', D, box, database)
             print('inserted data in Datasets_RunsAnalysis junction table')
         elif ega_object == 'analyses':
             # map analyses Ids to sample Ids    
@@ -4130,7 +4130,7 @@ def collect_metadata(credential_file, box, ega_object, counts, chunk_size, URL="
                 delete_records(credential_file, 'Analyses_Samples', box, database)
                 print('deleted rows in Analyses_Samples junction table')
             # instert data into junction table
-            instert_info_link_table(credential_file, 'Analyses_Samples', D, box)
+            instert_info_link_table(credential_file, 'Analyses_Samples', D, box, database)
             print('inserted data in Analyses_Samples junction table')
 
 
