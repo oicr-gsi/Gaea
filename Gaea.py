@@ -1355,7 +1355,7 @@ def get_subdirectories(user_name, password, directory):
     a = []
     ftp.cwd(directory)
     ftp.dir(a.append)
-    content = [os.path.join(directory, i.split()[-1]) for i in a if i.startswith('d')]
+    content = [directory + '/' + i.split()[-1] for i in a if i.startswith('d')]
     return content
 
     
