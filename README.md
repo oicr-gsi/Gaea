@@ -11,7 +11,62 @@ Script `register_EGA_metadata_Gaea.sh` runs `Gaea` to:
 
 # Adding data to the EGA database #
 
-## 1. Adding analyses information ##
+## 1. Adding study information ##
+
+usage: ```Gaea.py add_info study -c CREDENTIAL -md METADATADB -sd SUBDB -b BOXNAME -t TABLE -i INFORMATION```
+
+Parameters
+
+| argument | purpose | default | required/optional                                    |
+| ------- | ------- | ------- | ------------------------------------------ |
+| -c | File with database and box credentials |  | required                                    |
+| -md | Database collecting metadata | EGA | required                                    |
+| -sd | Project directory | EGASUB | required                                    |
+| -b | EGA submission box |  | required                                    |
+| -t | Table with study information | Studies | required                                    |
+| -i | Table with analysis info to be added to EGASUB |  | required                                    |
+
+The input information table is a a list of colon-separated key value pairs. 
+
+- alias: unique identifier associated with that study
+- studyTypeId: EGA-controlled vocabulary. choose from Cancer Genomics, Epigenetics, Exome Sequencing, Forensic or Paleo-genomics, Gene Regulation Study, Metagenomics, Other, Pooled Clone Sequencing, Population Genomics, RNASeq, Resequencing, Synthetic Genomics, Transcriptome Analysis, Transcriptome Sequencing, Whole Genome Sequencing
+- title: Study title 
+- studyAbstract: Abstract describing the study
+
+*Example:*
+
+alias:AML_error_modeling
+studyTypeId:Cancer Genomics
+title:Integration of intra-sample contextual error modeling for improved detection of somatic mutations
+studyAbstract:Sensitive mutation detection by next generation sequencing is of great importance for early cancer detection, monitoring minimal residual disease (MRD), and guiding precision oncology. Nevertheless, due to technical artefacts introduced during library preparation and sequencing steps as well as sub-optimal mutation calling analysis, the detection of variants with low allele frequency at high specificity is still problematic. Herein we validate a new practical error modeling technique for improved detection of single nucleotide variant (SNV) from hybrid-capture and targeted next generation sequencing.
+
+
+
+## 2. Adding policy information ##
+
+
+usage: ```Gaea.py add_info policy -c CREDENTIAL -md METADATADB -sd SUBDB -b BOXNAME -t TABLE -a ALIAS -d DACID -tl TITLE -pf POLICYFILE -pt POLICYTEXT -u URL```
+
+Parameters
+
+| argument | purpose | default | required/optional                                    |
+| ------- | ------- | ------- | ------------------------------------------ |
+| -c | File with database and box credentials |  | required                                    |
+| -md | Database collecting metadata | EGA | required                                    |
+| -sd | Project directory | EGASUB | required                                    |
+| -b | EGA submission box |  | required                                    |
+| -t | Table with policy information | Policies | required                                    |
+| -a | alias for the policy |  | required                                    |
+| -d | EGA accession ID for the corresponding DAC |  | required                                    |
+| -tl | Title of the policy |  | required                                    |
+| -pf | File with the template policy text |  | optional                                    |
+| -pt | Policy text |  | optional                                    |
+| -u | URL of the DAC or study  |  | optional                                    |
+
+`-pt` or `pf` must be used.
+    
+
+## 3. Adding analyses information ##
 
 ### Adding analysis information ### 
 
@@ -85,8 +140,8 @@ Input table is is a colon-separated list of key, value pairs.
 - analysisCenter:OICR
 - studyId: EGA study accession ID EGASxxxxx
 - Broker: EGA
-- analysisTypeId: choose from Reference Alignment (BAM), Sequence variation (VCF), Sample Phenotype
-- experimentTypeId: choose from Curation, Exome sequencing, Genotyping by array, Whole genome sequencing, transcriptomics
+- analysisTypeId: EGA-controlled vocabulary. choose from Reference Alignment (BAM), Sequence variation (VCF), Sample Phenotype
+- experimentTypeId: EGA-controlled vocabulary. choose from Curation, Exome sequencing, Genotyping by array, Whole genome sequencing, transcriptomics
 
 *Example:*
 
@@ -119,7 +174,7 @@ Input table is a colon-separated list key, value pairs.
 - alias: alias associated with the analysis attributes. must be the same value passed to `-a` when adding analysis information
 - title: title associated with the submission
 - description: short description of the data being registered
-- genomeId: choose between GRCh37, GRCh38
+- genomeId: EGA-controlled vocabulary. choose between GRCh37, GRCh38
 - StagePath: directory on the staging server where files will be uploaded
 
 It is possible to add custom attributes using tags of colon-separated key, value pairs preceded by "attributes".
