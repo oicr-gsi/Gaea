@@ -41,8 +41,43 @@ title:Integration of intra-sample contextual error modeling for improved detecti
 studyAbstract:Sensitive mutation detection by next generation sequencing is of great importance for early cancer detection, monitoring minimal residual disease (MRD), and guiding precision oncology. Nevertheless, due to technical artefacts introduced during library preparation and sequencing steps as well as sub-optimal mutation calling analysis, the detection of variants with low allele frequency at high specificity is still problematic. Herein we validate a new practical error modeling technique for improved detection of single nucleotide variant (SNV) from hybrid-capture and targeted next generation sequencing.
 
 
+## 2. Adding DAC information ##
 
-## 2. Adding policy information ##
+The DAC lists the names and contact information of each person accredited to authorize data access.
+
+usage: ```Gaea.py add_info dac -c CREDENTIAL -md METADATADB -sd SUBDB -b BOXNAME -t TABLE -i INFORMATION -a ALIAS -tl TITLE```
+
+
+Parameters
+
+| argument | purpose | default | required/optional                                    |
+| ------- | ------- | ------- | ------------------------------------------ |
+| -c | File with database and box credentials |  | required                                    |
+| -md | Database collecting metadata | EGA | required                                    |
+| -sd | Project directory | EGASUB | required                                    |
+| -b | EGA submission box |  | required                                    |
+| -t | Table with DAC information | Dacs | required                                    |
+| -a | unique alias for the DAC |  | required                                    |
+| -tl | Title of the DAC |  | required                                    |
+| -i | File with DAC information |  | optional                                    |
+
+
+Input information table should contain the following columns:
+
+- contactName: First and last name
+- email: email address
+- organisation: institution
+- phoneNumber: phone number of the contact
+- mainContact: true/false if the person is the primary contact
+
+*Example:*
+
+contactName	email	organisation	phoneNumber	mainContact
+John Smith	xxx.xxx@institution.ca	Ontario Institute for Cancer Research	xxx-xxx-xxxx	true
+Jane Doe	xxx.xxx@institution.ca	Ontario Institute for Cancer Research	xxx-xxx-xxxx	false
+
+
+## 3. Adding policy information ##
 
 
 usage: ```Gaea.py add_info policy -c CREDENTIAL -md METADATADB -sd SUBDB -b BOXNAME -t TABLE -a ALIAS -d DACID -tl TITLE -pf POLICYFILE -pt POLICYTEXT -u URL```
@@ -56,7 +91,7 @@ Parameters
 | -sd | Project directory | EGASUB | required                                    |
 | -b | EGA submission box |  | required                                    |
 | -t | Table with policy information | Policies | required                                    |
-| -a | alias for the policy |  | required                                    |
+| -a | unique alias for the policy |  | required                                    |
 | -d | EGA accession ID for the corresponding DAC |  | required                                    |
 | -tl | Title of the policy |  | required                                    |
 | -pf | File with the template policy text |  | optional                                    |
