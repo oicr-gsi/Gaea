@@ -99,9 +99,79 @@ Parameters
 | -u | URL of the DAC or study  |  | optional                                    |
 
 `-pt` or `pf` must be used.
-    
 
-## 3. Adding analyses information ##
+
+## 4. Adding samples information ##
+
+### Adding samples information ###
+
+usage: ```Gaea.py add_info samples -c CREDENTIAL -md METADATADB -sd SUBDB -b BOXNAME -t TABLE -a ATTRIBUTES -i INFO```
+ 
+Parameters
+
+| argument | purpose | default | required/optional                                    |
+| ------- | ------- | ------- | ------------------------------------------ |
+| -c | File with database and box credentials |  | required                                    |
+| -md | Database collecting metadata | EGA | required                                    |
+| -sd | Project directory | EGASUB | required                                    |
+| -b | EGA submission box |  | required                                    |
+| -t | Table with samples information | Samples | required                                    |
+| -i | Table with samples info to be added to EGASUB |  | required                                    |
+| -a | Primary key in the SamplesAttributes table |  | required                                    |
+
+
+The `-i` information table contains the following columns:
+
+- alias: unique sample identifier
+- caseOrControlId: EGA-controlled vocabulary, choose from case or control
+- genderId: EGA-controlled vocabulary, choose from male, female and unknown
+- phenotype: sample phenotype
+- subjectId: sample Id
+
+*Example:*
+
+| alias | caseOrControlId | genderId | phenotype |  subjectId |
+| ----- | --------------- | -------- | --------- |  --------- |
+| CB1 | control | female | Cord blood |  CB1 |
+| CB2 | control | male | Cord blood |  CB2 |
+| CB3 | control | male | Cord blood |  CB3 |
+
+
+### Adding samples attributes information ###
+
+Sample attributes are assigned to a group of samples. It is required to split samples into subsets if different attributes must be associated with a group of samples.
+
+usage: ```Gaea.py add_info samples_attributes -c CREDENTIAL -md METADATADB -sd SUBDB -b BOXNAME -t TABLE -i INFO```
+
+Parameters
+
+| argument | purpose | default | required/optional                                    |
+| ------- | ------- | ------- | ------------------------------------------ |
+| -c | File with database and box credentials |  | required                                    |
+| -md | Database collecting metadata | EGA | required                                    |
+| -sd | Project directory | EGASUB | required                                    |
+| -b | EGA submission box |  | required                                    |
+| -t | Table with sample attributes information | SamplesAttributes | required                                    |
+| -i | Table with sample attributes info to be added to EGASUB |  | required                                    |
+
+Table information is a colon-separated list of key, value pairs: 
+
+- alias: unique attribute alias. must be the same value passed to `-a` when adding sample information
+- title: sample title
+- description: short description of the samples 
+
+It is possible to add custom attributes using tags of colon-separated key, value pairs preceded by "attributes".
+For instance, add the following line to specify the origin of a group of subjects:
+`attributes:origin:canada`
+
+*Example:*
+
+alias:AMLErrModel
+title:AML
+description:Intra-sample error modeling
+
+
+## 5. Adding analyses information ##
 
 ### Adding analysis information ### 
 
@@ -190,6 +260,8 @@ experimentTypeId:Whole genome sequencing
 
 ### Adding analysis attributes information ###
 
+Attributes are assigned to a group of files. It is required to split analysis files into subsets of different attributes must be associated.
+
 usage: ```Gaea.py add_info analyses_attributes -c CREDENTIAL -md EGA -sd EGASUB -b BOX -t TABLE -i INFO -d DATATYPE```
 
 Parameters
@@ -225,3 +297,10 @@ genomeId:GRCh37
 StagePath:PCSI/SC/wgs
 attributes:aligner:BWA
 attributes:aligner_ver:0.6.2
+
+
+
+
+
+
+
