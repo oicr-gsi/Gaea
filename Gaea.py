@@ -1355,7 +1355,7 @@ def get_subdirectories(user_name, password, directory):
     a = []
     ftp.cwd(directory)
     ftp.dir(a.append)
-    content = [os.path.join(directory, i.split()[-1]) for i in a if i.startswith('d')]
+    content = [directory + '/' + i.split()[-1] for i in a if i.startswith('d')]
     return content
 
     
@@ -3528,6 +3528,7 @@ def count_objects(username, password, URL):
     D = {}
     token = connect_to_api(username, password, URL)
     headers = {'X-Token': token}
+    URL = format_url(URL)
     for i in L:
         # connect to API
         response = requests.get(URL + i + '?status=SUBMITTED&skip=0&limit=10', headers=headers)
@@ -3582,6 +3583,9 @@ def download_metadata(username, password, URL, ega_object, count, chunk_size):
     - chunk_size (int): Size of each chunk of data to download at once
     '''
     
+    # format URL
+    URL = format_url(URL)
+        
     # collect all instances of ega_object  
     L = []
     # get the right range limit
@@ -4047,9 +4051,9 @@ def get_unique_records(L, ega_object):
     return K
 
 
-def collect_metadata(credential_file, box, ega_object, chunk_size, URL="https://ega-archive.org/submission-api/v1", database='EGA'):
+def collect_metadata(credential_file, box, ega_object, counts, chunk_size, URL="https://ega-archive.org/submission-api/v1", database='EGA'):
     '''
-    (str, str, int, str, )
+    (str, str, dict, int, str, )
     
     Dowonload the EGA object's metadata in chuncks of chunksize for a given box from
     the EGA API at URL and instert it into the EGA database 
@@ -4060,6 +4064,7 @@ def collect_metadata(credential_file, box, ega_object, chunk_size, URL="https://
     - box (str): EGA box (e.g. ega-box-xxx)
     - ega_object (str): Registered object at the EGA. Accepted values:
                         studies, runs, samples, experiments, datasets, analyses, policies, dacs
+    - counts (dict): Counts of registered EGA objects in the given box
     - chunk_size (int): Size of each chunk of data to download at once
     - URL (str): URL of the API Default is: "https://ega-archive.org/submission-api/v1"
     - database (str): Name of the database
@@ -4067,8 +4072,6 @@ def collect_metadata(credential_file, box, ega_object, chunk_size, URL="https://
     
     # get the database and box credentials
     credentials = extract_credentials(credential_file)
-    # count all objects registered in box
-    counts = count_objects(box, credentials[box], URL)
     # process if objects exist
     if counts[ega_object] != 0:
         # download all metadata for object in chunks
@@ -4087,7 +4090,7 @@ def collect_metadata(credential_file, box, ega_object, chunk_size, URL="https://
         # get the table name    
         table_name = ega_object.title()   
         # make a list of tables
-        tables = show_tables(credential_file)
+        tables = show_tables(credential_file, database)
         if table_name not in tables:
             # create table
             create_table(credential_file, ega_object, database)
@@ -4097,7 +4100,7 @@ def collect_metadata(credential_file, box, ega_object, chunk_size, URL="https://
             delete_records(credential_file, table_name, box, database)
             print('deleted rows in table {0} for box {1}'.format(table_name, box))
         # insert data into table
-        insert_metadata_table(credential_file, ega_object, metadata)         
+        insert_metadata_table(credential_file, ega_object, metadata, database)         
         print('inserted data in table {0} for box {1}'.format(table_name, box))    
           
         # collect data to form Link Tables    
@@ -4113,7 +4116,7 @@ def collect_metadata(credential_file, box, ega_object, chunk_size, URL="https://
                 delete_records(credential_file, 'Datasets_RunsAnalysis', box, database)
                 print('deleted rows in Datasets_RunsAnalysis junction table')
             # instert data into junction table
-            instert_info_link_table(credential_file, 'Datasets_RunsAnalysis', D, box)
+            instert_info_link_table(credential_file, 'Datasets_RunsAnalysis', D, box, database)
             print('inserted data in Datasets_RunsAnalysis junction table')
         elif ega_object == 'analyses':
             # map analyses Ids to sample Ids    
@@ -4127,7 +4130,7 @@ def collect_metadata(credential_file, box, ega_object, chunk_size, URL="https://
                 delete_records(credential_file, 'Analyses_Samples', box, database)
                 print('deleted rows in Analyses_Samples junction table')
             # instert data into junction table
-            instert_info_link_table(credential_file, 'Analyses_Samples', D, box)
+            instert_info_link_table(credential_file, 'Analyses_Samples', D, box, database)
             print('inserted data in Analyses_Samples junction table')
 
 
@@ -4148,36 +4151,18 @@ def collect_registered_metadata(credential_file, box, chunk_size, URL, metadata_
     - metadata_database (str): Database storing information about registered EGA objects
     '''
     
+    # count all objects registered in box
+    credentials = extract_credentials(credential_file)
+    counts = count_objects(box, credentials[box], URL)
+        
     ega_objects = ['studies', 'runs', 'samples', 'experiments', 'datasets', 'analyses', 'policies', 'dacs']
     for i in ega_objects:
         try:
-            collect_metadata(credential_file, box, i, chunk_size, URL, metadata_database)
+            collect_metadata(credential_file, box, i, counts, chunk_size, URL, metadata_database)
         except:
             print('## ERROR ## Could not add {0} metadata for box {1} into EGA database'.format(i, box))
 
-########### add info in submssion table
-            
-                  
-# -*- coding: utf-8 -*-
-"""
-Created on Wed Mar  6 18:51:04 2019
 
-@author: rjovelin
-"""
-
-# import modules
-import os
-import argparse
-# import functions 
-from Gaea import *
-
-# resource for json formatting and api submission
-#https://ega-archive.org/submission/programmatic_submissions/json-message-format
-#https://ega-archive.org/submission/programmatic_submissions/submitting-metadata
-
-
-## functions specific to Analyses objects =====================================
-    
 def parse_analysis_input_table(table):
     '''
     (str) -> list
@@ -5766,26 +5751,27 @@ if __name__ == '__main__':
         check_upload(args.object, args.credential, args.subdb, args.table, args.box, args.alias, args.jobnames, args.attributes)
     elif args.subparser_name == 'collect':
         collect_registered_metadata(args.credential, args.box, args.chunksize, args.URL, args.metadatadb)
-    elif args.subsubparser_name == 'samples':
-        add_sample_info(args.credential, args.metadatadb, args.subdb, args.table, args.info, args.attributes, args.box)
-    elif args.subsubparser_name == 'samples_attributes':
-        add_sample_attributes(args.credential, args.metadatadb, args.subdb, args.table, args.info, args.box)
-    elif args.subsubparser_name == 'datasets':
-        add_dataset_info(args.credential, args.subdb, args.metadatadb, args.table, args.alias, args.policy, args.description, args.title,
-                         args.dataset_typeIds, args.accessions, args.datasets_links, args.attributes, args.box)
-    elif args.subsubparser_name == 'runs':
-        add_runs_info(args.credential, args.metadatadb, args.subdb, args.table, args.information, args.file_type, args.stage_path, args.box)
-    elif args.subsubparser_name == 'experiments':
-        add_experiment_info(args.credential, args.subdb, args.metadatadb, args.table, args.information, args.title, args.study, 
-                            args.description, args.instrument, args.selection, args.source, args.strategy, args.protocol, args.library, args.box)
-    elif args.subsubparser_name == 'policy':
-        add_policy_info(args.credential, args.metadatadb, args.subdb, args.table, args.alias, args.dacid, args.title, args.policyfile, args.policytext, args.url, args.box)
-    elif args.subsubparser_name == 'study':
-        add_study_info(args.credential, args.metadatadb, args.subdb, args.table, args.information, args.box)
-    elif args.subsubparser_name == 'dac':
-        add_dac_info(args.credential, args.metadatadb, args.subdb, args.table, args.alias, args.information, args.title, args.box)
-    elif args.subsubparser_name == 'analyses':
-        add_analyses_info(args.credential, args.metadatadb, args.subdb, args.table, args.information, args.projects, args.attributes, args.box)
-    elif args.subsubparser_name == 'analyses_attributes':
-        add_analyses_attributes_projects(args.credential, args.metadatadb, args.subdb, args.table, args.information, args.datatype, args.box)
+    elif args.subparser_name == 'add_info':
+        if args.subsubparser_name == 'samples':
+            add_sample_info(args.credential, args.metadatadb, args.subdb, args.table, args.info, args.attributes, args.box)
+        elif args.subsubparser_name == 'samples_attributes':
+            add_sample_attributes(args.credential, args.metadatadb, args.subdb, args.table, args.info, args.box)
+        elif args.subsubparser_name == 'datasets':
+            add_dataset_info(args.credential, args.subdb, args.metadatadb, args.table, args.alias, args.policy, args.description, args.title,
+                             args.dataset_typeIds, args.accessions, args.datasets_links, args.attributes, args.box)
+        elif args.subsubparser_name == 'runs':
+            add_runs_info(args.credential, args.metadatadb, args.subdb, args.table, args.information, args.file_type, args.stage_path, args.box)
+        elif args.subsubparser_name == 'experiments':
+            add_experiment_info(args.credential, args.subdb, args.metadatadb, args.table, args.information, args.title, args.study, 
+                                args.description, args.instrument, args.selection, args.source, args.strategy, args.protocol, args.library, args.box)
+        elif args.subsubparser_name == 'policy':
+            add_policy_info(args.credential, args.metadatadb, args.subdb, args.table, args.alias, args.dacid, args.title, args.policyfile, args.policytext, args.url, args.box)
+        elif args.subsubparser_name == 'study':
+            add_study_info(args.credential, args.metadatadb, args.subdb, args.table, args.information, args.box)
+        elif args.subsubparser_name == 'dac':
+            add_dac_info(args.credential, args.metadatadb, args.subdb, args.table, args.alias, args.information, args.title, args.box)
+        elif args.subsubparser_name == 'analyses':
+            add_analyses_info(args.credential, args.metadatadb, args.subdb, args.table, args.information, args.projects, args.attributes, args.box)
+        elif args.subsubparser_name == 'analyses_attributes':
+            add_analyses_attributes_projects(args.credential, args.metadatadb, args.subdb, args.table, args.information, args.datatype, args.box)
         
