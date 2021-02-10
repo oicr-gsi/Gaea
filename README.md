@@ -380,14 +380,15 @@ POOLCLONE, RAD-Seq, RIP-Seq, RNA-Seq, SELEX, Synthetic-Long-Read, Targeted-Captu
 Tn-Seq, VALIDATION, WCS, WGA, WGS, WXS, miRNA-Seq, ncRNA-Seq, ssRNA-seq 
 
 `-in` Instrument is an EGA-controlled vocabulary. Choose from: 
-    - ABI SOLID Models, AB 5500 Genetic Analyzer, AB 5500xl Genetic Analyzer, AB 5500xl-W Genetic Analysis System, AB SOLiD 3 Plus System, AB SOLiD 4 System, AB SOLiD 4hq System, AB SOLiD PI System, AB SOLiD System, AB SOLiD System 2.0, AB SOLiD System 3.0, AB 310 Genetic Analyzer, CAPILLARY Models, AB 3130 Genetic Analyzer, AB 3130xL Genetic Analyzer, AB 3500 Genetic Analyzer, AB 3500xL Genetic Analyzer, AB 3730 Genetic Analyzer, AB 3730xL Genetic Analyzer
-    - COMPLETE GENOMICS Models, Complete Genomics
-    - HELICOS Models, Helicos HeliScope 
-    - ILLUMINA Models, HiSeq X Five, HiSeq X Ten, Illumina Genome Analyzer, Illumina Genome Analyzer II, ILLUMINA Models, Illumina Genome Analyzer IIx, Illumina HiScanSQ, Illumina HiSeq 1000, Illumina HiSeq 1500, Illumina HiSeq 2000, Illumina HiSeq 2500, Illumina HiSeq 3000, Illumina HiSeq 4000, Illumina MiSeq, Illumina MiniSeq, Illumina NovaSeq 6000, NextSeq 500, NextSeq 550
-    - ION TORRENT Models, Ion Torrent PGM, Ion Torrent Proton, Ion Torrent S5, Ion Torrent S5 XL
-    - LS454 Models, 454 GS, 454 GS 20, 454 GS FLX, 454 GS FLX Titanium, 454 GS FLX+, 454 GS Junior
-    - OXFORD NANOPORE Models, GridION, MinION, PromethION
-    - PACBIO SMRT Models, PacBio RS, PacBio RS II, Sequel
+- ABI SOLID Models, AB 5500 Genetic Analyzer, AB 5500xl Genetic Analyzer, AB 5500xl-W Genetic Analysis System, AB SOLiD 3 Plus System, AB SOLiD 4 System, AB SOLiD 4hq System, AB SOLiD PI System, AB SOLiD System, AB SOLiD System 2.0, AB SOLiD System 3.0, AB 310 Genetic Analyzer, CAPILLARY Models, AB 3130 Genetic Analyzer, AB 3130xL Genetic Analyzer, AB 3500 Genetic Analyzer, AB 3500xL Genetic Analyzer, AB 3730 Genetic Analyzer, AB 3730xL Genetic Analyzer
+- COMPLETE GENOMICS Models, Complete Genomics
+- HELICOS Models, Helicos HeliScope 
+- ILLUMINA Models, HiSeq X Five, HiSeq X Ten, Illumina Genome Analyzer, Illumina Genome Analyzer II, ILLUMINA Models, Illumina Genome Analyzer IIx, Illumina HiScanSQ, Illumina HiSeq 1000, Illumina HiSeq 1500, Illumina HiSeq 2000, Illumina HiSeq 2500, Illumina HiSeq 3000, Illumina HiSeq 4000, Illumina MiSeq, Illumina MiniSeq, Illumina NovaSeq 6000, NextSeq 500, NextSeq 550
+- ION TORRENT Models, Ion Torrent PGM, Ion Torrent Proton, Ion Torrent S5, Ion Torrent S5 XL
+- LS454 Models, 454 GS, 454 GS 20, 454 GS FLX, 454 GS FLX Titanium, 454 GS FLX+, 454 GS Junior
+- OXFORD NANOPORE Models, GridION, MinION, PromethION
+- PACBIO SMRT Models, PacBio RS, PacBio RS II, Sequel
+
 
 *Example:*
 
@@ -429,9 +430,14 @@ Amplicon sequencing, Chip-Seq, Chromatin accessibility profiling by high-through
 `-acs` File with analyses and/or runs accessions is a one-column table formatted as follow:
 
 EGAR00001589680
+
 EGAR00001589682
+
 EGAR00001589683
+
 EGAZ00001312940
+
 EGAZ00001312942
+
 EGAZ00001312943
 
