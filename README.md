@@ -21,7 +21,7 @@ Parameters
 | ------- | ------- | ------- | ------------------------------------------ |
 | -c | File with database and box credentials |  | required                                    |
 | -md | Database collecting metadata | EGA | required                                    |
-| -sd | Project directory | EGASUB | required                                    |
+| -sd | Database with submission metadata | EGASUB | required                                    |
 | -b | EGA submission box |  | required                                    |
 | -t | Table with study information | Studies | required                                    |
 | -i | Table with analysis info to be added to EGASUB |  | required                                    |
@@ -54,7 +54,7 @@ Parameters
 | ------- | ------- | ------- | ------------------------------------------ |
 | -c | File with database and box credentials |  | required                                    |
 | -md | Database collecting metadata | EGA | required                                    |
-| -sd | Project directory | EGASUB | required                                    |
+| -sd | Database with submission metadata | EGASUB | required                                    |
 | -b | EGA submission box |  | required                                    |
 | -t | Table with DAC information | Dacs | required                                    |
 | -a | unique alias for the DAC |  | required                                    |
@@ -88,7 +88,7 @@ Parameters
 | ------- | ------- | ------- | ------------------------------------------ |
 | -c | File with database and box credentials |  | required                                    |
 | -md | Database collecting metadata | EGA | required                                    |
-| -sd | Project directory | EGASUB | required                                    |
+| -sd | Database with submission metadata | EGASUB | required                                    |
 | -b | EGA submission box |  | required                                    |
 | -t | Table with policy information | Policies | required                                    |
 | -a | unique alias for the policy |  | required                                    |
@@ -113,7 +113,7 @@ Parameters
 | ------- | ------- | ------- | ------------------------------------------ |
 | -c | File with database and box credentials |  | required                                    |
 | -md | Database collecting metadata | EGA | required                                    |
-| -sd | Project directory | EGASUB | required                                    |
+| -sd | Database with submission metadata | EGASUB | required                                    |
 | -b | EGA submission box |  | required                                    |
 | -t | Table with samples information | Samples | required                                    |
 | -i | Table with samples info to be added to EGASUB |  | required                                    |
@@ -149,7 +149,7 @@ Parameters
 | ------- | ------- | ------- | ------------------------------------------ |
 | -c | File with database and box credentials |  | required                                    |
 | -md | Database collecting metadata | EGA | required                                    |
-| -sd | Project directory | EGASUB | required                                    |
+| -sd | Database with submission metadata | EGASUB | required                                    |
 | -b | EGA submission box |  | required                                    |
 | -t | Table with sample attributes information | SamplesAttributes | required                                    |
 | -i | Table with sample attributes info to be added to EGASUB |  | required                                    |
@@ -183,7 +183,7 @@ Parameters
 | ------- | ------- | ------- | ------------------------------------------ |
 | -c | File with database and box credentials |  | required                                    |
 | -md | Database collecting metadata | EGA | required                                    |
-| -sd | Project directory | EGASUB | required                                    |
+| -sd | Database with submission metadata | EGASUB | required                                    |
 | -b | EGA submission box |  | required                                    |
 | -t | Table with analyses information | Analyses | required                                    |
 | -i | Table with analysis info to be added to EGASUB |  | required                                    |
@@ -197,6 +197,7 @@ Analysis project and attributes store information that be can be re-used for mul
 The information table should be formatted following the examples below and follows these rules:
 - alias: a unique record for the file or group of files
 - sampleReferences: alias of the registered sample of sample accession ID
+                    can be a unique alias or ID or semi-colon separated aliases or sample IDs if the file contains data from multiple samples
 - filePath: path of the file on the file system
 - fileName (optional): name of the uploaded file at EGA (file basename of omitted)
 - analysisDate (optional): date the file was generated
@@ -232,7 +233,7 @@ Parameters
 | ------- | ------- | ------- | ------------------------------------------ |
 | -c | File with database and box credentials |  | required                                    |
 | -md | Database collecting metadata | EGA | required                                    |
-| -sd | Project directory | EGASUB | required                                    |
+| -sd | Database with submission metadata | EGASUB | required                                    |
 | -b | EGA submission box |  | required                                    |
 | -t | Table with project information | AnalysesProjects | required                                    |
 | -i | Table with project info to be added to EGASUB |  | required                                    |
@@ -270,7 +271,7 @@ Parameters
 | ------- | ------- | ------- | ------------------------------------------ |
 | -c | File with database and box credentials |  | required                                    |
 | -md | Database collecting metadata | EGA | required                                    |
-| -sd | Project directory | EGASUB | required                                    |
+| -sd | Database with submission metadata | EGASUB | required                                    |
 | -b | EGA submission box |  | required                                    |
 | -t | Table with project information | AnalysesAttributes | required                                    |
 | -i | Table with project info to be added to EGASUB |  | required                                    |
@@ -300,7 +301,42 @@ attributes:aligner_ver:0.6.2
 
 
 
+## 6. Adding runs information ##
 
+usage: ```Gaea.py add_info runs -c CREDENTIAL -md METADATADB -sd SUBDB -b BOXNAME -t TABLE -i INFORMATION -f FILE_TYPE -sp STAGE_PATH```
 
+Parameters
 
+| argument | purpose | default | required/optional                                    |
+| ------- | ------- | ------- | ------------------------------------------ |
+| -c | File with database and box credentials |  | required                                    |
+| -md | Database collecting metadata | EGA | required                                    |
+| -sd | Database with submission metadata | EGASUB | required                                    |
+| -b | EGA submission box |  | required                                    |
+| -t | Table with runs information | Runs | required                                    |
+| -i | Table with runs info to be added to EGASUB |  | required                                    |
+| -f |  File type. EGA-controlled vocabulary. choose from "One Fastq file (Single)", "Two Fastq files (Paired)" |  | required                                    |
+| -sp | Directory on the staging server where files are uploaded |  | required                                    |
 
+The `-i` information table should contain the the following columns
+
+- alias: unique identifier for the file or group of files. double underscore "__" is not allowed in alias
+- sampleId: alias used to register the same or sample accession ID 
+- experimentId: alias used to register the experiment or experiment accession ID 
+- filePath: path to file on the file system
+- fileName: name of the file to be uploaded at EGA. File basename is used if this column is omitted
+
+Group files by using the same alias on separate lines. Columns fileName is optional.
+
+*Example:*
+
+| alias | sampleId | experimentId | filePath                                    |
+| ------- | ------- | ------- | ------------------------------------------ |
+| PCSI_0106_Pa_P_526_rnaseq | PCSI_0106_Pa_P_526 | PCSI_0106_Pa_P_526.rnaseq.libA.1 | /path_to/PCSI_0106_Pa_P_526_unmapped_R1.fastq.gz                                    |
+| PCSI_0106_Pa_P_526_rnaseq | PCSI_0106_Pa_P_526 | PCSI_0106_Pa_P_526.rnaseq.libA.1 | /path_to/PCSI_0106_Pa_P_526_unmapped_R2.fastq.gz                                   |
+| PCSI_0224_Pa_P_526_rnaseq | PCSI_0224_Pa_P_526 | PCSI_0224_Pa_P_526.rnaseq.libA.1 | /path_to/PCSI_0224_Pa_P_526_unmapped_R1.fastq.gz                                    |
+| PCSI_0224_Pa_P_526_rnaseq | PCSI_0224_Pa_P_526 | PCSI_0224_Pa_P_526.rnaseq.libA.1 | /path_to/PCSI_0224_Pa_P_526_unmapped_R2.fastq.gz                                   |
+
+                 
+                     
+                     
