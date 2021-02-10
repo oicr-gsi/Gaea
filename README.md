@@ -337,6 +337,64 @@ Group files by using the same alias on separate lines. Columns fileName is optio
 | PCSI_0224_Pa_P_526_rnaseq | PCSI_0224_Pa_P_526 | PCSI_0224_Pa_P_526.rnaseq.libA.1 | /path_to/PCSI_0224_Pa_P_526_unmapped_R1.fastq.gz                                    |
 | PCSI_0224_Pa_P_526_rnaseq | PCSI_0224_Pa_P_526 | PCSI_0224_Pa_P_526.rnaseq.libA.1 | /path_to/PCSI_0224_Pa_P_526_unmapped_R2.fastq.gz                                   |
 
+
+## 7. Adding experiments information ##
                  
-                     
-                     
+usage: ```Gaea.py add_info experiments -c CREDENTIAL -md METADATADB -sd SUBDB -b BOXNAME -t TABLE -i INFORMATION -tl TITLE -st STUDY -d DESCRIPTION -in INSTRUMENT -s SELECTION -sc SOURCE -sg STRATEGY -p PROTOCOL -la LIBRARY```
+
+Parameters
+
+| argument | purpose | default | required/optional                                    |
+| ------- | ------- | ------- | ------------------------------------------ |
+| -c | File with database and box credentials |  | required                                    |
+| -md | Database collecting metadata | EGA | required                                    |
+| -sd | Database with submission metadata | EGASUB | required                                    |
+| -b | EGA submission box |  | required                                    |
+| -t | Table with experiments information | Experiments | required                                    |
+| -i | Table with runs info to be added to EGASUB |  | required                                    |
+| -tl |  Short experiment title |  | required                                    |
+| -st | Study alias or study accession Id |  | required                                    |
+| -d | Library description  |  | required                                    |
+| -in | Instrument model. EGA-controlled vocabulary  |  | required                                    |
+| -s | Library selection. EGA-controlled vocabulary |  | required                                    |
+| -sc | Library source. EGA-controlled vocabulary |  | required                                    |
+| -sg | Library strategy. EGA-controlled vocabulary |  | required                                    |
+| -p | Library construction protocol. can be empty string  |  | required                                    |
+| -la | Library 0 for paired and 1 for single end sequencing |  | required                                    |
+
+
+`-s` Library selection is an EGA-controlled vocabulary.
+Choose from: 5-methylcytidine antibody, CAGE, ChIP, ChIP-Seq, DNase, HMPR, Hybrid Selection, 
+Inverse rRNA, Inverse rRNA selection, MBD2 protein methyl-CpG binding domain, MDA,
+MF, MNase, MSLL, Oligo-dT, PCR, PolyA, RACE, RANDOM, RANDOM PCR, RT-PCR, Reduced Representation,
+Restriction Digest, cDNA, cDNA_oligo_dT, cDNA_randomPriming, other, padlock probes capture method,
+repeat fractionation, size fractionation, unspecified
+
+`-sc` Library source is an EGA-controlled vocabulary.
+Choose from: GENOMIC SINGLE CELL, METAGENOMIC, METATRANSCRIPTOMIC, OTHER, SYNTHETIC, TRANSCRIPTOMIC, TRANSCRIPTOMIC SINGLE CELL, VIRAL RNA
+
+`-sg` Library strategy is an EGA-controlled vocabulary.
+Choose from AMPLICON, ATAC-seq, Bisulfite-Seq, CLONE, CLONEEND, CTS, ChIA-PET, ChIP-Seq, DNase-Hypersensitivity,
+EST, FAIRE-seq, FINISHING, FL-cDNA, Hi-C, MBD-Seq, MNase-Seq, MRE-Seq, MeDIP-Seq, OTHER,
+POOLCLONE, RAD-Seq, RIP-Seq, RNA-Seq, SELEX, Synthetic-Long-Read, Targeted-Capture, Tethered Chromatin Conformation Capture,
+Tn-Seq, VALIDATION, WCS, WGA, WGS, WXS, miRNA-Seq, ncRNA-Seq, ssRNA-seq 
+
+`-in` Instrument is an EGA-controlled vocabulary. Choose from: 
+    - ABI SOLID Models, AB 5500 Genetic Analyzer, AB 5500xl Genetic Analyzer, AB 5500xl-W Genetic Analysis System, AB SOLiD 3 Plus System, AB SOLiD 4 System, AB SOLiD 4hq System, AB SOLiD PI System, AB SOLiD System, AB SOLiD System 2.0, AB SOLiD System 3.0, AB 310 Genetic Analyzer, CAPILLARY Models, AB 3130 Genetic Analyzer, AB 3130xL Genetic Analyzer, AB 3500 Genetic Analyzer, AB 3500xL Genetic Analyzer, AB 3730 Genetic Analyzer, AB 3730xL Genetic Analyzer
+    - COMPLETE GENOMICS Models, Complete Genomics
+    - HELICOS Models, Helicos HeliScope 
+    - ILLUMINA Models, HiSeq X Five, HiSeq X Ten, Illumina Genome Analyzer, Illumina Genome Analyzer II, ILLUMINA Models, Illumina Genome Analyzer IIx, Illumina HiScanSQ, Illumina HiSeq 1000, Illumina HiSeq 1500, Illumina HiSeq 2000, Illumina HiSeq 2500, Illumina HiSeq 3000, Illumina HiSeq 4000, Illumina MiSeq, Illumina MiniSeq, Illumina NovaSeq 6000, NextSeq 500, NextSeq 550
+    - ION TORRENT Models, Ion Torrent PGM, Ion Torrent Proton, Ion Torrent S5, Ion Torrent S5 XL
+    - LS454 Models, 454 GS, 454 GS 20, 454 GS FLX, 454 GS FLX Titanium, 454 GS FLX+, 454 GS Junior
+    - OXFORD NANOPORE Models, GridION, MinION, PromethION
+    - PACBIO SMRT Models, PacBio RS, PacBio RS II, Sequel
+
+*Example:*
+
+| sampleId | alias | libraryName |
+| ------- | ------- | ------- |
+| PCSI_0106_Pa_P_526 | PCSI_0106_Pa_P_526.rnaseq.libA.1 | PCSI_0106_Pa_P_526.rnaseq.libA |
+| PCSI_0224_Pa_P_526 | PCSI_0224_Pa_P_526.rnaseq.libA.1 | PCSI_0224_Pa_P_526.rnaseq.libA |
+| PCSI_0384_Pa_P_526 | PCSI_0384_Pa_P_526.rnaseq.libA.1 | PCSI_0384_Pa_P_526.rnaseq.libA |
+
+      
