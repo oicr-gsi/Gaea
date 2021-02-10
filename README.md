@@ -398,3 +398,40 @@ Tn-Seq, VALIDATION, WCS, WGA, WGS, WXS, miRNA-Seq, ncRNA-Seq, ssRNA-seq
 | PCSI_0384_Pa_P_526 | PCSI_0384_Pa_P_526.rnaseq.libA.1 | PCSI_0384_Pa_P_526.rnaseq.libA |
 
       
+## 8. Adding datasets information ##
+
+
+usage: ```Gaea.py add_info datasets -c CREDENTIAL -md METADATADB -sd SUBDB -b BOXNAME -t TABLE -a ALIAS -p POLICY -ds DESCRIPTION -tl TITLE -di DATASET_TYPEIDS -acs ACCESSIONS -dl DATASETS_LINKS -at ATTRIBUTES```
+
+
+Parameters
+
+| argument | purpose | default | required/optional                                    |
+| ------- | ------- | ------- | ------------------------------------------ |
+| -c | File with database and box credentials |  | required                                    |
+| -md | Database collecting metadata | EGA | required                                    |
+| -sd | Database with submission metadata | EGASUB | required                                    |
+| -b | EGA submission box |  | required                                    |
+| -t | Table with datasets information | Datasets | required                                    |
+| -a | Unique alias for the dataset |  | required                                    |
+| -p | Policy alias or accession ID |  | required                                    |
+| -ds | Dataset short description |  | required                                    |
+| -tl | Datset short title |  | required                                    |
+| -di | Dataset type Id. EGA-controlled vocabulary |  | required                                    |
+| -acs | File with analyses and/or runs accession IDs |  | required                                    |
+| -dl | File with dataset URLs |  | optional                                    |
+| -at | File with dataset attributes |  | optional                                    |
+
+
+`-di` Dataset type Id is an EGA-controlled vocabulary. Choose from:
+Amplicon sequencing, Chip-Seq, Chromatin accessibility profiling by high-throughput sequencing, Exome sequencing, Genomic variant calling, Genotyping by array, Histone modification profiling by high-throughput sequencing, Methylation binding domain sequencing, Methylation profiling by high-throughput sequencing, Phenotype information, Study summary information, Transcriptome profiling by array, Transcriptome profiling by high-throughput sequencing, Whole genome sequencing 
+
+`-acs` File with analyses and/or runs accessions is a one-column table formatted as follow:
+
+EGAR00001589680
+EGAR00001589682
+EGAR00001589683
+EGAZ00001312940
+EGAZ00001312942
+EGAZ00001312943
+
