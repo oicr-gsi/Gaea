@@ -1428,7 +1428,7 @@ def extract_file_size_staging_server(credential_file, box, directory):
     for S in files:
         S = S.rstrip().split()
         file_size = int(S[4])
-        file_path = os.path.join(directory, S[-1])
+        file_path = directory + '/' + S[-1]
         size[file_path] = file_size
     return size
 
@@ -5597,7 +5597,7 @@ if __name__ == '__main__':
     parent_parser.add_argument('-c', '--Credentials', dest='credential', help='file with database credentials', required=True)
     parent_parser.add_argument('-md', '--MetadataDb', dest='metadatadb', default='EGA', help='Name of the database collection EGA metadata. Default is EGA')
     parent_parser.add_argument('-sd', '--SubDb', dest='subdb', default='EGASUB', help='Name of the database used to object information for submission to EGA. Default is EGASUB')
-    parent_parser.add_argument('-b', '--Box', dest='box', choices=['ega-box-12', 'ega-box-137', 'ega-box-1269'], help='Box where objects will be registered', required=True)
+    parent_parser.add_argument('-b', '--Box', dest='box', choices=['ega-box-12', 'ega-box-137', 'ega-box-1269', 'ega-box-1843', 'ega-box-499'], help='Box where objects will be registered', required=True)
     
     # create main parser
     main_parser = argparse.ArgumentParser(prog = 'Gaea.py', description='manages EGA submissions')
