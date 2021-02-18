@@ -1,0 +1,102 @@
+DATA ACCESS AGREEMENT
+This Data Access Agreement (the *Agreement*) is made this _____ day of _______________, 20__ (the *Effective Date*).
+BETWEEN: Ontario Institute for Cancer Research, a not-for-profit corporation, funded by the Government of Ontario, having an address at MaRS Centre, 661 University Ave, Suite 510, Toronto, Ontario, M5G 0A3 (*OICR*)
+AND __________________, having an address ________________ _________________ ____________  (the *Recipient*).  OICR and Recipient are each individually a *Party*, and together the *Parties*.
+WHEREAS OICR is the custodian of Genomic Sequence Data, and
+WHEREAS OICR has made such data available through the European Genome-phenome Archive (*EGA*), and
+WHEREAS Recipient wishes to access such data  from EGA for the purposes of  __________________ _______________________ as further described in Appendix B; and
+WHEREAS OICR wishes to have the data included in the Study.
+NOW THEREFORE, the Parties agree as follows:
+1.	DEFINITIONS
+1.1	*Data* means de-identified genomic data that cannot, alone, reasonably be used to identify an individual.
+1.2	*Confidential Information* means, subject to Clause 7, any and all information provided to Recipient by OICR relating to the Data.
+1.3	*Investigator* means _______________, the Recipient investigator who will receive the Data and oversee the research.
+1.4	*Licensed Use* means use of the Data only by Recipient, and solely for the Study.
+1.5	*Study* means the ________________ ________________________________ as further described in Appendix B and updated from time to time (the *Study*).  Where there is disagreement between the details of the Study described in Appendix B and this Agreement, this Agreement dominates.
+2.	GRANT
+2.1	OICR hereby grants, and Recipient accepts, a nonexclusive, non-transferable (except as provided in Section 11), limited right and license to use the Data described in Appendix A only for the Licensed Use. Except as otherwise permitted herein, in no event shall Recipient transfer Data to any third parties or allow any third parties to view or use the Data.
+2.2	OICR retains title to all Data.
+2.3	Recipient agrees that it shall not attempt, by any means, to establish the identity of, or make contact with, either directly or indirectly, any Study participant and agrees only to publish or to disclose data that has been categorized or otherwise grouped into a format that precludes determination of individual records, such as data in an aggregate form.
+2.4	Investigator and Recipient shall maintain the Data in a secure manner and will take all reasonable steps to ensure that the Data is protected against theft, loss, modification and unauthorized copying, use, or disclosure and that safeguards employed are consistent with industry best practice.
+2.5	Recipient and Investigator shall immediately notify OICR in writing if either becomes aware of any breach or suspected breach of this Agreement or if Data has been (or is believed to have been) stolen, lost or accessed by unauthorized persons, and shall take reasonable steps to contain the breach, theft, loss or unauthorized access.
+2.6	Recipient will maintain the confidentiality of the Data and ensure that only persons with a need to know and who are aware of and have agreed to comply with the terms and conditions of this Agreement will have access to the Data.
+2.7	Recipient shall ensure that its use of the Data, complies with all applicable laws and regulations.
+2.8	Recipient shall permit all data security and management document to be inspected to verify that it is complying with the terms of this Agreement.
+3.	FINANCIAL ARRANGEMENTS
+Recipient shall bear its own cost of implementing this Agreement.
+4.	NO WARRANTIES
+OICR MAKES NO REPRESENTATIONS AND EXTENDS NO WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED OF MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, OR THAT THE USE OF THE DATA WILL NOT INFRINGE ANY PATENT, COPYRIGHT, OR TRADEMARK, OR OTHER RIGHTS OR ANY OTHER EXPRESS OR IMPLIED WARRANTIES. OICR DOES NOT WARRANT THAT THE DATA WILL MEET THE RECIPIENT`S REQUIREMENTS OR EXPECTATIONS. ALL DATA IS PROVIDED ON AN *AS IS* AND *AS AVAILABLE* BASIS.  RECIPIENT`S USE OF THE MATERIAL IS AT ITS OWN RISK.
+5.	INDEMNIFICATION
+Recipient agree to indemnify, hold harmless and defend OICR, its members, officers, employees, contractors, subcontractors, students and agents against any and all third party claims, suits, proceedings, costs, or expenses resulting from any negligence or from any injury (including death), damage, or loss or the alleged infringement of any copyright, patent, trademark, trade secret or other intellectual property or proprietary right arising out of Recipient`s use of the Data or any products or services derived from the Data.
+6.	LIMIT OF LIABILITY
+The Recipient acknowledges and agrees that OICR and its officers, employees, contractors, subcontractors students and agents, shall not be liable for any direct, indirect, consequential, exemplary, special, or punitive damages arising from breach of this Agreement or from any cause of action relating to its provision of the Data to Recipient or Recipient`s use or inability to use the Data.  OICR shall not be liable for any lost profits or other economic loss of Recipient.
+7.	CONFIDENTIALITY
+Subject to Section 8 hereof Recipient will treat OICR`s Confidential Information with at least the same degree of care that Recipient uses for its own confidential information and will not reveal OICR`s Confidential Information to third parties without the written consent of OICR and will not use such Confidential Information except for the purpose of this Agreement. These restrictions will not apply to information which:
+(a)	Was demonstrably in the possession of Recipient prior to the date of disclosure of the Confidential Information by OICR to Recipient; or
+(b)	Is publicly known at the time of the disclosure; or
+(c)	Is required to be disclosed under applicable laws, regulations or orders of any governmental authority; or
+(d)	Is furnished by OICR to others without restrictions on its use or disclosure.
+8.	NAMES AND PUBLICATION
+Investigator and Recipient agree to acknowledge the contributions of the OICR in all publications and presentations of studies utilizing Data received from OICR and to provide a copy of all publications and/or abstracts of presentations to OICR thirty (30) days in advance of publication or presentation.  Recipient will ensure that the following wording accompanies any publication and/or abstracts of presentations:  This study was conducted with the support of the Ontario Institute for Cancer Research through funding provided by the Government of Ontario.
+9.	TERMINATION
+9.1	Recipient may terminate this Agreement by giving OICR ninety (90) days notice in writing.
+9.2	OICR may terminate this Agreement if Recipient is in breach of any provision hereof; and Recipient fails to remedy such breach within thirty (30) days written notice from OICR.
+9.3	OICR may terminate this Agreement upon the bankruptcy, or insolvency of Recipient or if Recipient becomes party to any bankruptcy proceeding.
+9.4	This Agreement terminates upon the completion or termination of the Study.
+9.5	Upon termination of this Agreement, Recipient shall:
+(a)	cease all use of the Data;
+(b)	promptly destroy any remaining Data in a secure manner.
+9.6	Notwithstanding any such termination, any provisions of these terms that by their nature are intended to survive, will survive termination.
+
+10.	ASSIGNMENT.  This agreement may not be assigned.
+11.	NOTICES
+11.1	All general notices to Recipient shall be sent to:
+
+
+
+
+
+Fax:
+Attention:
+
+11.2	All general notices to OICR shall be sent to:
+Abelson Group Data Access Committee
+Ontario Institute for Cancer Research
+MaRS Centre
+661 University Avenue, Suite 510
+Toronto, ON   M5G 0A3
+Fax: 416-977-7446
+12.	MISCELLANEOUS
+12.1	Entire Agreement. This document is the entire agreement between the parties in relation to its subject matter, and supersedes all prior and collateral representations, warranties, covenants, negotiations or discussions. This Agreement may only by modified by a written document, signed by authorized representatives of the Parties.
+12.2	Choice of Law. This Agreement shall be governed and interpreted according the laws of the Province of Ontario and the parties attorn to the jurisdiction of Ontario courts.
+12.3	Counterparts. This Agreement may be executed electronically or by facsimile in any number of counterparts, each of which will be deemed an original and all of which together will constitute one and the same instrument.
+12.4	Relationship. Recipient and OICR are independent contractors. Nothing in this Agreement constitutes Recipient and OICR as partners or joint venturers. Recipient does not have the authority to bind OICR.
+12.5	Severability. Each of the provisions contained in this Agreement is distinct and severable. Any declaration by a court of competent jurisdiction of the invalidity or unenforceability of any provision or part of a provision will not affect the validity or enforceability of any other provision of this Agreement.
+12.6	Waiver. The failure of either party to insist upon strict performance of any terms and conditions or to exercise any of its rights set out in this Agreement shall not constitute a waiver of these rights, and these rights shall continue in full force and effect.
+IN WITNESS WHEREOF the undersigned Parties hereto agree to all the terms and conditions herein.
+ONTARIO INSTITUTE FOR CANCER RESEARCH	                    Recipient Inc.
+
+(Date)	Name: Christine Williams
+Title: Deputy Director
+(I have authority to bind the Corporation)	(Date)	   Name:
+    Title:
+(I have authority to bind the Corporation)
+
+
+ACKNOWLEDGEMENT OF INVESTIGATOR:
+In signing below I, as an Investigator in this research project, hereby agree to act in accordance with all the terms and conditions of this agreement and further agree to ensure that all research project participants are informed of their obligations under such terms and conditions.
+
+
+(Date)		[signature of Investigator]
+Name of Investigator:
+
+
+APPENDIX A
+
+THE DATA
+
+ [NTD: Insert description/list of data OR could supplant with the APPENDIX I - DATASET DETAILS of EGA template]
+
+
+THE STUDY
+[NTD: Insert description OR could supplant with the APPENDIX II - PROJECT DETAILS of EGA template]
