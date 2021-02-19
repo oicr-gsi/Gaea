@@ -130,12 +130,6 @@ def add_working_directory(credential_file, database, table, box, working_dir):
         cur.execute('SELECT {0}.alias FROM {0} WHERE {0}.Status=\"valid\" and {0}.egaBox=\"{1}\"'.format(table, box))
         data = cur.fetchall()
         
-        print('create working dir', len(data))
-        print([i[0] for i in data])
-        print('----')
-        
-        
-        
         if len(data) != 0:
             # loop over alias
             for i in data:
@@ -157,18 +151,14 @@ def add_working_directory(credential_file, database, table, box, working_dir):
         cur.execute('SELECT {0}.alias, {0}.WorkingDirectory FROM {0} WHERE {0}.Status=\"valid\" and {0}.egaBox=\"{1}\"'.format(table, box))
         data = cur.fetchall()
         
-        print('check working dir', len(data))
-        print([i[0] for i in data])
-        print('----')
-        
         if len(data) != 0:
             for i in data:
                 error = []
                 alias = i[0]
-                working_dir = get_working_directory(i[1], working_dir)
+                working_directory = get_working_directory(i[1], working_dir)
                 if i[1] in ['', 'NULL', '(null)']:
                     error.append('Working directory does not have a valid Id')
-                if os.path.isdir(working_dir) == False:
+                if os.path.isdir(working_directory) == False:
                     error.append('Working directory not generated')
                 # check if error message
                 if len(error) != 0:
