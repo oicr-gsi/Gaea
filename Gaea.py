@@ -3061,7 +3061,7 @@ def create_json(credential_file, submission_database, metadata_database, table, 
     '''
 
     # check if Analyses table exists
-    tables = show_tables(credential_file, submit_metadata)
+    tables = show_tables(credential_file, submission_database)
         
     if table in tables:
         ## grab aliases with start status and check if required information is present in table(s) 
