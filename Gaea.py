@@ -2056,7 +2056,7 @@ def encrypt_and_checksum(credential_file, database, table, box, alias, ega_objec
                     job_names.extend([JobName1, JobName2, JobName3])
         
         # launch check encryption job
-        MyCmd = 'sleep 300; module load Gaea/1.0.0 check_encryption -c {0} -s {1} -t {2} -b {3} -a {4} -o {5} -w {6} -j \"{7}\"'
+        MyCmd = 'sleep 300; module load gaea; Gaea check_encryption -c {0} -s {1} -t {2} -b {3} -a {4} -o {5} -w {6} -j \"{7}\"'
         # get parent directory
         working_dir = os.path.dirname(outdir)
         # put commands in shell script
@@ -2380,9 +2380,9 @@ def upload_alias_files(alias, files, stage_path, file_dir, credential_file, data
     if ega_object == 'analyses':
         if 'attributes' in KeyWordParams:
             attributes_table = KeyWordParams['attributes']
-        CheckCmd = 'sleep 600; module load Gaea/1.0.0; Gaea CheckUpload -c {0} -s {1} -t {2} -b {3} -a {4} -j \"{5}\" -o {6} --Attributes {7}'
+        CheckCmd = 'sleep 600; module load gaea; Gaea check_upload -c {0} -s {1} -t {2} -b {3} -a {4} -j \"{5}\" -o {6} --Attributes {7}'
     elif ega_object == 'runs':
-        CheckCmd = 'sleep 600; module load Gaea/1.0.0; Gaea CheckUpload -c {0} -s {1} -t {2} -b {3} -a {4} -j \"{5}\" -o {6}' 
+        CheckCmd = 'sleep 600; module load gaea; Gaea check_upload -c {0} -s {1} -t {2} -b {3} -a {4} -j \"{5}\" -o {6}' 
     
     # put commands in shell script
     BashScript = os.path.join(qsubdir, alias + '_check_upload.sh')
