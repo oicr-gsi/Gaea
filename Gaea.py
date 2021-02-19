@@ -139,8 +139,8 @@ def add_working_directory(credential_file, database, table, box, working_dir):
                 cur.execute('UPDATE {0} SET {0}.WorkingDirectory=\"{1}\" WHERE {0}.alias=\"{2}\" AND {0}.egaBox=\"{3}\"'.format(table, UID, alias, box))  
                 conn.commit()
                 # create working directories
-                working_dir = get_working_directory(UID, working_dir)
-                os.makedirs(working_dir)
+                working_directory = get_working_directory(UID, working_dir)
+                os.makedirs(working_directory)
         conn.close()
         
         # check that working directory was recorded and created
