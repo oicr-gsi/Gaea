@@ -129,6 +129,13 @@ def add_working_directory(credential_file, database, table, box, working_dir):
         # get the alias with valid status
         cur.execute('SELECT {0}.alias FROM {0} WHERE {0}.Status=\"valid\" and {0}.egaBox=\"{1}\"'.format(table, box))
         data = cur.fetchall()
+        
+        print('create working dir', len(data))
+        print([i[0] for i in data])
+        print('----')
+        
+        
+        
         if len(data) != 0:
             # loop over alias
             for i in data:
@@ -149,6 +156,11 @@ def add_working_directory(credential_file, database, table, box, working_dir):
         # get the alias and working directory with valid status
         cur.execute('SELECT {0}.alias, {0}.WorkingDirectory FROM {0} WHERE {0}.Status=\"valid\" and {0}.egaBox=\"{1}\"'.format(table, box))
         data = cur.fetchall()
+        
+        print('check working dir', len(data))
+        print([i[0] for i in data])
+        print('----')
+        
         if len(data) != 0:
             for i in data:
                 error = []
