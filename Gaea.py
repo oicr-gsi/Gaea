@@ -526,9 +526,9 @@ def map_enumerations():
 
 def get_json_keys(ega_object, action):
     '''
-    (str, str) -> (list, list)
+    (str, str) -> list
     
-    Returns a tuple with lists of keys and required keys to validate or form the submission json
+    Returns a list of required keys to validate or form the submission json
     
     Parameters
     ----------
@@ -539,55 +539,30 @@ def get_json_keys(ega_object, action):
     '''
     
     if ega_object == 'analyses':
-        keys = ['alias', 'analysisCenter', 'analysisTypeId', 'attributes', 'description',
-                'experimentTypeId', 'files', 'genomeId', 'sampleReferences', 'studyId', 'title']
-        required = ['StagePath', 'alias', 'analysisCenter', 'analysisTypeId',
-                    'description', 'experimentTypeId', 'files', 'genomeId',
-                    'sampleReferences', 'studyId', 'title']
+        required = ['StagePath', 'alias', 'analysisCenter', 'analysisTypeId', 'description',
+                    'experimentTypeId', 'files', 'genomeId', 'sampleReferences', 'studyId', 'title']
         if action == 'validation':
-            keys.extend(['egaBox', 'AttributesKey', 'ProjectKey', 'StagePath',  'Broker'])
             required.extend(['egaBox', 'AttributesKey', 'ProjectKey', 'Broker'])              
-        elif action == 'formation':
-            keys.extend(["analysisDate", "chromosomeReferences", "platform"])
     elif ega_object == 'samples':
-        keys = ['alias', 'attributes', 'caseOrControlId', 'description',
-                'genderId', 'phenotype', 'title']
         required = ['alias', 'caseOrControlId', 'description', 'genderId', 'phenotype', 'title']
         if action == 'validation':
-            keys.extend(['egaBox', 'AttributesKey'])
             required.extend(['egaBox', 'AttributesKey'])
-        elif action == 'formation':
-            keys.extend(["organismPart", "cellLine", "region", "subjectId",
-                         "anonymizedName", "bioSampleId", "sampleAge", "sampleDetail"])
     elif ega_object == 'datasets':
-        keys = ['alias', 'analysisReferences', 'attributes', 'datasetLinks',
-                'datasetTypeIds', 'description', 'policyId', 'runsReferences', 'title']
         required = ['alias', 'datasetTypeIds', 'description', 'egaBox', 'policyId', 'title']     
-        if action == 'validation':
-            keys.append('egaBox')     
     elif ega_object == 'studies':
-        keys = ['alias', 'studyTypeId', 'shortName', 'title', 'studyAbstract', 'ownTerm', 'pubMedIds', 'customTags', 'egaBox']
         required = ['alias', 'egaBox', 'studyAbstract', 'studyTypeId', 'title']
     elif ega_object == 'policies':
-        keys = ['alias', 'dacId', 'egaBox', 'policyText', 'title', 'url']
         required = ['alias', 'dacId', 'egaBox', 'policyText', 'title']
     elif ega_object == 'dacs':
-        keys = ['alias', 'contacts', 'egaBox', 'title']
         required = ['alias', 'contacts', 'egaBox', 'title']
     elif ega_object == 'runs':
-        keys = ['alias', 'egaBox', 'experimentId', 'files', 'runFileTypeId', 'sampleId']
         required = ['alias', 'egaBox', 'experimentId', 'files', 'runFileTypeId', 'sampleId']
     elif ega_object == 'experiments':
-        keys = ['alias', 'designDescription', 'egaBox', 'instrumentModelId',
-                'libraryConstructionProtocol', 'libraryLayoutId', 'libraryName',
-                'librarySelectionId', 'librarySourceId', 'libraryStrategyId',
-                'pairedNominalLength', 'pairedNominalSdev', 'sampleId',
-                'studyId', 'title']
         required = ['alias', 'designDescription', 'egaBox', 'instrumentModelId',
                     'libraryLayoutId', 'libraryName', 'librarySelectionId',
                     'librarySourceId', 'libraryStrategyId', 'pairedNominalLength',
                     'pairedNominalSdev', 'sampleId', 'studyId', 'title']
-    return keys, required
+    return required
 
 
 def is_info_valid(credential_file, metadata_database, submission_database, table, box, ega_object, **KeyWordParams):
@@ -626,7 +601,7 @@ def is_info_valid(credential_file, metadata_database, submission_database, table
         projects_table = KeyWordParams['projects']
     
     # get the json keys
-    keys, required = get_json_keys(ega_object, 'validation')
+    required = get_json_keys(ega_object, 'validation')
     
     # get required information
     if ega_object == 'analyses':
@@ -667,6 +642,7 @@ def is_info_valid(credential_file, metadata_database, submission_database, table
     try:
         cur.execute(cmd)
         data = cur.fetchall()
+        keys = [i[0] for i in cur.description]
     except:
         data = []
     conn.close()
@@ -993,8 +969,8 @@ def format_json(D, ega_object):
     # create a dict to be strored as a json. note: strings should have double quotes
     J = {}
     
-    # get json keys
-    JsonKeys, required  = get_json_keys(ega_object, 'formation')
+    # get required json keys
+    required  = get_json_keys(ega_object, 'formation')
 
     # map typeId with enumerations
     map_enum = map_enumerations()
@@ -1008,165 +984,164 @@ def format_json(D, ega_object):
         names_to_chromo[chromo_to_names[i]] = i
 
     # loop over required json keys
-    for field in JsonKeys:
-        if field in D:
-            if D[field] in ['NULL', '', None]:
-                # some fields are required, return empty dict if field is empty
-                if field in required:
-                    # erase dict and add alias
+    for field in D:
+        if D[field] in ['NULL', '', None]:
+            # some fields are required, return empty dict if field is empty
+            if field in required:
+                # erase dict and add alias
+                J = {}
+                J["alias"] = D["alias"]
+                # return dict with alias only if required fields are missing
+                return J
+            # other fields can be missing, either as empty list or string
+            else:
+                # check if field is already recorded. eg: chromosomeReferences may be set already for vcf
+                if field not in J:
+                    # some non-required fields need to be lists
+                    if field in ["chromosomeReferences", "attributes", "datasetLinks", "runsReferences",
+                                 "analysisReferences", "pubMedIds", "customTags"]:
+                        J[field] = []
+                    else:
+                        J[field] = ""
+        else:
+            if field == 'files':
+                assert D[field] != 'NULL'
+                J[field] = []
+                # convert string to dict
+                files = D[field].replace("'", "\"")
+                files = json.loads(files)
+                # file format is different for analyses and runs
+                if ega_object == 'analyses':
+                    # make a list of contigs used. required for vcf, optional for bam
+                    contigs = []
+                    # loop over file name
+                    for file_path in files:
+                        # create a dict to store file info
+                        # check that fileTypeId is valid
+                        if files[file_path]["fileTypeId"].lower() not in enumerations[map_enum['fileTypeId']]:
+                            # cannot obtain fileTypeId. erase dict and add alias
+                            J = {}
+                            J["alias"] = D["alias"]
+                            # return dict with alias only if required fields are missing
+                            return J
+                        else:
+                            file_typeId = enumerations[map_enum['fileTypeId']][files[file_path]["fileTypeId"].lower()]
+                        # check if analysis object is bam or vcf
+                        # chromosomeReferences is optional for bam but required for vcf and tab
+                        if files[file_path]["fileTypeId"].lower() == 'vcf':
+                            # make a list of contigs found in the vcf header or body
+                            contigs.extend(extract_contigs_from_vcf(file_path))
+                        elif files[file_path]["fileTypeId"].lower() == 'tab':
+                            # make a list of contigs 
+                            contigs.extend(extract_contigs_from_tsv(file_path))
+                        # create dict with file info, add path to file names
+                        d = {"fileName": os.path.join(D['StagePath'], files[file_path]['encryptedName']),
+                             "checksum": files[file_path]['checksum'],
+                             "unencryptedChecksum": files[file_path]['unencryptedChecksum'],
+                             "fileTypeId": file_typeId}
+                        J[field].append(d)
+                
+                    # check if chromosomes were recorded
+                    if len(contigs) != 0:
+                        # remove duplicate names
+                        contigs = list(set(contigs))
+                        # map chromosome names 
+                        if 'genomeId' not in D:
+                            # erase dict and add alias
+                            J = {}
+                            J["alias"] = D["alias"]
+                            return J
+                        else:
+                            # only GRCh37 and GRch38 are supported
+                            if D['genomeId'].lower() not in ['grch37', 'grch38']:
+                                # erase dict and add alias
+                                J = {}
+                                J["alias"] = D["alias"]
+                                return J
+                            else:
+                                if D['genomeId'].lower() == 'grch37':
+                                    suffix = '.1'
+                                elif D['genomeId'].lower() == 'grch38':
+                                    suffix = '.2'
+                                values = [chromo_to_names[i] + suffix for i in contigs if i in chromo_to_names]
+                                # add chromosome reference info
+                                J['chromosomeReferences'] = [{"value": enumerations['ReferenceChromosomes'][i], "label": names_to_chromo[i.replace(suffix, '')]} for i in values if i in enumerations['ReferenceChromosomes']]  
+                elif ega_object == 'runs':
+                    # loop over file name
+                    for file_path in files:
+                        # create a dict with file info, add stagepath to file name
+                        d = {"fileName": os.path.join(D['StagePath'], files[file_path]['encryptedName']),
+                             "checksum": files[file_path]['checksum'], "unencryptedChecksum": files[file_path]['unencryptedChecksum'],
+                             "checksumMethod": 'md5'}
+                        J[field].append(d)
+            elif field in ['runsReferences', 'analysisReferences', 'pubMedIds']:
+                J[field] = D[field].split(';')
+            elif field in ['attributes', 'datasetLinks', 'customTags']:
+                # ensure strings are double-quoted
+                attributes = D[field].replace("'", "\"")
+                # convert string to dict
+                # loop over all attributes
+                attributes = attributes.split(';')
+                J[field] = [json.loads(attributes[i].strip().replace("'", "\"")) for i in range(len(attributes))]
+            elif field == 'libraryLayoutId':
+                try:
+                    int(D[field]) in [0, 1]
+                    J[field] = int(D[field])
+                except:
+                    # must be coded 0 for paired end or 1 for single end
+                    J = {}
+                    # return dict with alias if required field is missing
+                    J["alias"] = D["alias"]
+                    return J
+            elif field  in ['pairedNominalLength', 'pairedNominalSdev']:
+                try:
+                    float(D[field])
+                    J[field] = float(D[field])
+                except:
+                    # must be coded 0 for paired end or 1 for single end
+                    J = {}
+                    # return dict with alias if required field is missing
+                    J["alias"] = D["alias"]
+                    return J        
+            # check enumerations
+            elif field in map_enum:
+                # check that enumeration is valid
+                if D[field] not in enumerations[map_enum[field]]:
+                    # cannot obtain enumeration. erase dict and add alias
                     J = {}
                     J["alias"] = D["alias"]
                     # return dict with alias only if required fields are missing
                     return J
-                # other fields can be missing, either as empty list or string
                 else:
-                    # check if field is already recorded. eg: chromosomeReferences may be set already for vcf
-                    if field not in J:
-                        # some non-required fields need to be lists
-                        if field in ["chromosomeReferences", "attributes", "datasetLinks", "runsReferences",
-                                     "analysisReferences", "pubMedIds", "customTags"]:
-                            J[field] = []
-                        else:
-                            J[field] = ""
-            else:
-                if field == 'files':
-                    assert D[field] != 'NULL'
-                    J[field] = []
-                    # convert string to dict
-                    files = D[field].replace("'", "\"")
-                    files = json.loads(files)
-                    # file format is different for analyses and runs
-                    if ega_object == 'analyses':
-                        # make a list of contigs used. required for vcf, optional for bam
-                        contigs = []
-                        # loop over file name
-                        for file_path in files:
-                            # create a dict to store file info
-                            # check that fileTypeId is valid
-                            if files[file_path]["fileTypeId"].lower() not in enumerations[map_enum['fileTypeId']]:
-                                # cannot obtain fileTypeId. erase dict and add alias
-                                J = {}
-                                J["alias"] = D["alias"]
-                                # return dict with alias only if required fields are missing
-                                return J
-                            else:
-                                file_typeId = enumerations[map_enum['fileTypeId']][files[file_path]["fileTypeId"].lower()]
-                            # check if analysis object is bam or vcf
-                            # chromosomeReferences is optional for bam but required for vcf and tab
-                            if files[file_path]["fileTypeId"].lower() == 'vcf':
-                                # make a list of contigs found in the vcf header or body
-                                contigs.extend(extract_contigs_from_vcf(file_path))
-                            elif files[file_path]["fileTypeId"].lower() == 'tab':
-                                # make a list of contigs 
-                                contigs.extend(extract_contigs_from_tsv(file_path))
-                            # create dict with file info, add path to file names
-                            d = {"fileName": os.path.join(D['StagePath'], files[file_path]['encryptedName']),
-                                 "checksum": files[file_path]['checksum'],
-                                 "unencryptedChecksum": files[file_path]['unencryptedChecksum'],
-                                 "fileTypeId": file_typeId}
-                            J[field].append(d)
-                    
-                        # check if chromosomes were recorded
-                        if len(contigs) != 0:
-                            # remove duplicate names
-                            contigs = list(set(contigs))
-                            # map chromosome names 
-                            if 'genomeId' not in D:
-                                # erase dict and add alias
-                                J = {}
-                                J["alias"] = D["alias"]
-                                return J
-                            else:
-                                # only GRCh37 and GRch38 are supported
-                                if D['genomeId'].lower() not in ['grch37', 'grch38']:
-                                    # erase dict and add alias
-                                    J = {}
-                                    J["alias"] = D["alias"]
-                                    return J
-                                else:
-                                    if D['genomeId'].lower() == 'grch37':
-                                        suffix = '.1'
-                                    elif D['genomeId'].lower() == 'grch38':
-                                        suffix = '.2'
-                                    values = [chromo_to_names[i] + suffix for i in contigs if i in chromo_to_names]
-                                    # add chromosome reference info
-                                    J['chromosomeReferences'] = [{"value": enumerations['ReferenceChromosomes'][i], "label": names_to_chromo[i.replace(suffix, '')]} for i in values if i in enumerations['ReferenceChromosomes']]  
-                    elif ega_object == 'runs':
-                        # loop over file name
-                        for file_path in files:
-                            # create a dict with file info, add stagepath to file name
-                            d = {"fileName": os.path.join(D['StagePath'], files[file_path]['encryptedName']),
-                                 "checksum": files[file_path]['checksum'], "unencryptedChecksum": files[file_path]['unencryptedChecksum'],
-                                 "checksumMethod": 'md5'}
-                            J[field].append(d)
-                elif field in ['runsReferences', 'analysisReferences', 'pubMedIds']:
-                    J[field] = D[field].split(';')
-                elif field in ['attributes', 'datasetLinks', 'customTags']:
-                    # ensure strings are double-quoted
-                    attributes = D[field].replace("'", "\"")
-                    # convert string to dict
-                    # loop over all attributes
-                    attributes = attributes.split(';')
-                    J[field] = [json.loads(attributes[i].strip().replace("'", "\"")) for i in range(len(attributes))]
-                elif field == 'libraryLayoutId':
-                    try:
-                        int(D[field]) in [0, 1]
-                        J[field] = int(D[field])
-                    except:
-                        # must be coded 0 for paired end or 1 for single end
-                        J = {}
-                        # return dict with alias if required field is missing
-                        J["alias"] = D["alias"]
-                        return J
-                elif field  in ['pairedNominalLength', 'pairedNominalSdev']:
-                    try:
-                        float(D[field])
-                        J[field] = float(D[field])
-                    except:
-                        # must be coded 0 for paired end or 1 for single end
-                        J = {}
-                        # return dict with alias if required field is missing
-                        J["alias"] = D["alias"]
-                        return J        
-                # check enumerations
-                elif field in map_enum:
-                    # check that enumeration is valid
-                    if D[field] not in enumerations[map_enum[field]]:
-                        # cannot obtain enumeration. erase dict and add alias
-                        J = {}
-                        J["alias"] = D["alias"]
-                        # return dict with alias only if required fields are missing
-                        return J
+                    # check field to add enumeration to json
+                    if field == "experimentTypeId":
+                        J[field] = [enumerations[map_enum[field]][D[field]]]
+                    elif field == "datasetTypeIds":
+                        # multiple Ids can be stored
+                        J[field] = [enumerations[map_enum[field]][k] for k in D[field].split(';')]
                     else:
-                        # check field to add enumeration to json
-                        if field == "experimentTypeId":
-                            J[field] = [enumerations[map_enum[field]][D[field]]]
-                        elif field == "datasetTypeIds":
-                            # multiple Ids can be stored
-                            J[field] = [enumerations[map_enum[field]][k] for k in D[field].split(';')]
+                        J[field] = enumerations[map_enum[field]][D[field]]
+            elif field == 'sampleReferences':
+                # populate with sample accessions
+                J[field] = [{"value": accession.strip(), "label":""} for accession in D[field].split(';')]
+            elif field == 'contacts':
+                J[field] = [json.loads(contact.replace("'", "\"")) for contact in D[field].split(';')]
+            
+            # fields added as aliases must be replaced with accessions
+            elif field in ['studyId', 'policyId', 'dacId', 'experimentId']:
+                a = ['studyId', 'policyId', 'dacId', 'experimentId']
+                b = ['EGAS', 'EGAP', 'EGAC', 'EGAX']
+                for i in range(len(a)):
+                    if field == a[i]:
+                        if D[field].startswith(b[i]):
+                            J[field] = D[field]
                         else:
-                            J[field] = enumerations[map_enum[field]][D[field]]
-                elif field == 'sampleReferences':
-                    # populate with sample accessions
-                    J[field] = [{"value": accession.strip(), "label":""} for accession in D[field].split(';')]
-                elif field == 'contacts':
-                    J[field] = [json.loads(contact.replace("'", "\"")) for contact in D[field].split(';')]
-                
-                # fields added as aliases must be replaced with accessions
-                elif field in ['studyId', 'policyId', 'dacId', 'experimentId']:
-                    a = ['studyId', 'policyId', 'dacId', 'experimentId']
-                    b = ['EGAS', 'EGAP', 'EGAC', 'EGAX']
-                    for i in range(len(a)):
-                        if field == a[i]:
-                            if D[field].startswith(b[i]):
-                                J[field] = D[field]
-                            else:
-                                # erase dict and add alias
-                                J = {}
-                                J["alias"] = D["alias"]
-                                return J
-                else:
-                    J[field] = D[field]
+                            # erase dict and add alias
+                            J = {}
+                            J["alias"] = D["alias"]
+                            return J
+            else:
+                J[field] = D[field]
     return J                
 
 
