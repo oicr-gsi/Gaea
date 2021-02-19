@@ -566,8 +566,7 @@ def get_json_keys(ega_object, action):
         if action == 'validation':
             keys.append('egaBox')     
     elif ega_object == 'studies':
-        keys = ['alias', 'customTags', 'egaBox', 'ownTerm', 'pubMedIds', 'shortName',
-                'studyAbstract', 'studyTypeId', 'title']
+        keys = ['alias', 'studyTypeId', 'shortName', 'title', 'studyAbstract', 'ownTerm', 'pubMedIds', 'customTags', 'egaBox']
         required = ['alias', 'egaBox', 'studyAbstract', 'studyTypeId', 'title']
     elif ega_object == 'policies':
         keys = ['alias', 'dacId', 'egaBox', 'policyText', 'title', 'url']
