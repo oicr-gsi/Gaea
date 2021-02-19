@@ -3111,9 +3111,9 @@ def create_json(credential_file, submission_database, metadata_database, table, 
             ## upload files and change the status upload -> uploading 
             ## check that files have been successfully uploaded, update status uploading -> uploaded or rest status uploading -> upload
             if ega_object == 'analyses':
-                upload_object_files(credential_file, submission_database, table, ega_object, footprint_table, box, memory, max_uploads, max_footprint, attributes = analysis_attributes_table)
+                upload_object_files(credential_file, submission_database, table, ega_object, footprint_table, box, memory, max_uploads, max_footprint, working_dir, attributes = analysis_attributes_table)
             elif ega_object == 'runs':
-                upload_object_files(credential_file, submission_database, table, ega_object, footprint_table, box, memory, max_uploads, max_footprint)
+                upload_object_files(credential_file, submission_database, table, ega_object, footprint_table, box, memory, max_uploads, max_footprint, working_dir)
             
             ## remove files with uploaded status. does not change status. keep status uploaded --> uploaded
             remove_files_after_submission(credential_file, submission_database, table, box, remove, working_dir)
