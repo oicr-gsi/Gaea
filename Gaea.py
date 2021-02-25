@@ -2318,10 +2318,10 @@ def upload_alias_files(alias, files, stage_path, file_dir, credential_file, data
     jobName = 'MakeDestinationDir.{0}'.format(alias)
     qsub_cmd = "qsub -b y -P gsi -N {0} -e {1} -o {1} \"bash {2}\"".format(jobName, logdir, bashscript)
     job = subprocess.call(qsub_cmd, shell=True)
-    # record job name and exit code.
+    # record job name but not exit code.
+    # may produce an error message if directory already exists. do not evaluate command during CheckUpload
     job_names.append(jobName)
-    job_exits.append(job)    
-    
+        
     
     # loop over filepaths
     for i in range(len(file_paths)):
