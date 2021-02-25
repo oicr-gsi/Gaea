@@ -2369,8 +2369,8 @@ def upload_alias_files(alias, files, stage_path, file_dir, credential_file, data
   
     
     
-    
-    
+    # do not check job used to make destination directory
+    job_names = job_names[1:]
     # put commands in shell script
     BashScript = os.path.join(qsubdir, alias + '_check_upload.sh')
     with open(BashScript, 'w') as newfile:
