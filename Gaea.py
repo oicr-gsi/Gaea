@@ -5699,7 +5699,7 @@ if __name__ == '__main__':
     elif args.subparser_name == 'check_encryption':
         check_encryption(args.credential, args.subdb, args.table, args.box, args.alias, args.object, args.jobnames, args.workingdir)
     elif args.subparser_name == 'check_upload':
-        check_upload(args.object, args.credential, args.subdb, args.table, args.box, args.alias, args.jobnames, args.attributes)
+        check_upload(args.object, args.credential, args.subdb, args.table, args.box, args.alias, args.jobnames, args.workingdir, args.attributes)
     elif args.subparser_name == 'collect':
         collect_registered_metadata(args.credential, args.box, args.chunksize, args.URL, args.metadatadb)
     elif args.subparser_name == 'add_info':
