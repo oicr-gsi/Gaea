@@ -4607,7 +4607,7 @@ def add_dataset_info(credential_file, submission_database, metadata_database, ta
                     columns.append(fields[i] + ' TEXT NULL')
                 elif fields[i] in ['Json', 'Receipt']:
                     columns.append(fields[i] + ' MEDIUMTEXT NULL,')
-                elif fields[i] in ['runsReferences', 'analysisReferences']:
+                elif fields[i] in ['runsReferences', 'analysisReferences', 'datasetTypeIds']:
                     columns.append(fields[i] + ' LONGTEXT NULL,')
                 elif fields[i] == 'alias':
                     columns.append(fields[i] + ' VARCHAR(100) PRIMARY KEY UNIQUE,')
