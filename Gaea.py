@@ -4809,6 +4809,8 @@ def add_sample_info(credential_file, metadata_database, submission_database, tab
                 columns.append(fields[i] + ' TEXT NULL')
             elif fields[i] in ['Json', 'Receipt', 'files']:
                 columns.append(fields[i] + ' MEDIUMTEXT NULL,')
+            elif fields[i] == 'phenotype':
+                columns.append(fields[i] + ' LONGTEXT NULL,')
             elif fields[i] == 'alias':
                 columns.append(fields[i] + ' VARCHAR(100) PRIMARY KEY UNIQUE,')
             else:
