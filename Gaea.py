@@ -2362,9 +2362,9 @@ def upload_alias_files(alias, files, stage_path, file_dir, credential_file, data
     if ega_object == 'analyses':
         if 'attributes' in KeyWordParams:
             attributes_table = KeyWordParams['attributes']
-        CheckCmd = 'sleep 600; /u/rjovelin/SOFT/anaconda3/bin/python3.6 /u/rjovelin/gaea_new/Gaea/Gaea.py CheckUpload -c {0} -s {1} -t {2} -b {3} -a {4} -j \"{5}\" -o {6} --Attributes {7}'
+        CheckCmd = 'sleep 600; /u/rjovelin/SOFT/anaconda3/bin/python3.6 /u/rjovelin/gaea_new/Gaea/Gaea.py check_upload -c {0} -s {1} -t {2} -b {3} -a {4} -j \"{5}\" -o {6} --Attributes {7}'
     elif ega_object == 'runs':
-        CheckCmd = 'sleep 600; /u/rjovelin/SOFT/anaconda3/bin/python3.6 /u/rjovelin/gaea_new/Gaea/Gaea.py CheckUpload -c {0} -s {1} -t {2} -b {3} -a {4} -j \"{5}\" -o {6}'
+        CheckCmd = 'sleep 600; /u/rjovelin/SOFT/anaconda3/bin/python3.6 /u/rjovelin/gaea_new/Gaea/Gaea.py check_upload -c {0} -s {1} -t {2} -b {3} -a {4} -j \"{5}\" -o {6}'
     
   
     
