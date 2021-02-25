@@ -2840,11 +2840,16 @@ def check_upload_files(credential_file, database, table, box, ega_object, alias,
                 # check if errors are found in log
                 if check_upload_success(logdir, alias, filename) == False:
                     uploaded = False
+                print('check log')
+                print(filename, uploaded)
+                    
             
             # check the exit status of the jobs uploading files
             for jobName in job_names.split(';'):
                 if get_job_exit_status(jobName) != '0':
                     uploaded = False
+                print('check exit')
+                print(jobName, uploaded)   
             
             # check if files are uploaded on the server
             for file_path in files:
@@ -2855,6 +2860,10 @@ def check_upload_files(credential_file, database, table, box, ega_object, alias,
                 for j in [encryptedFile, encryptedMd5, originalMd5]:
                     if j not in files_box[stage_path]:
                         uploaded = False
+                    print('check upload')
+                    print(j, uploaded)
+            
+            
             # check if all files for that alias have been uploaded
             if uploaded == True:
                 # connect to database, update status and close connection
