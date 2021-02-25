@@ -2349,25 +2349,13 @@ def upload_alias_files(alias, files, stage_path, file_dir, credential_file, data
         else:
             return [-1]
     
-#    # launch check upload job
-#    if ega_object == 'analyses':
-#        if 'attributes' in KeyWordParams:
-#            attributes_table = KeyWordParams['attributes']
-#        CheckCmd = 'sleep 600; module load gaea; Gaea check_upload -c {0} -s {1} -t {2} -b {3} -a {4} -j \"{5}\" -o {6} --Attributes {7}'
-#    elif ega_object == 'runs':
-#        CheckCmd = 'sleep 600; module load gaea; Gaea check_upload -c {0} -s {1} -t {2} -b {3} -a {4} -j \"{5}\" -o {6}' 
-#    
-    
-    
+    # launch check upload job
     if ega_object == 'analyses':
         if 'attributes' in KeyWordParams:
             attributes_table = KeyWordParams['attributes']
-        CheckCmd = 'sleep 600; /u/rjovelin/SOFT/anaconda3/bin/python3.6 /u/rjovelin/gaea_new/Gaea/Gaea.py check_upload -c {0} -s {1} -t {2} -b {3} -a {4} -j \"{5}\" -o {6} --Attributes {7}'
+        CheckCmd = 'sleep 600; module load gaea; Gaea check_upload -c {0} -s {1} -t {2} -b {3} -a {4} -j \"{5}\" -o {6} --Attributes {7}'
     elif ega_object == 'runs':
-        CheckCmd = 'sleep 600; /u/rjovelin/SOFT/anaconda3/bin/python3.6 /u/rjovelin/gaea_new/Gaea/Gaea.py check_upload -c {0} -s {1} -t {2} -b {3} -a {4} -j \"{5}\" -o {6}'
-    
-  
-    
+        CheckCmd = 'sleep 600; module load gaea; Gaea check_upload -c {0} -s {1} -t {2} -b {3} -a {4} -j \"{5}\" -o {6}' 
     
     # do not check job used to make destination directory
     job_names = job_names[1:]
@@ -2840,16 +2828,11 @@ def check_upload_files(credential_file, database, table, box, ega_object, alias,
                 # check if errors are found in log
                 if check_upload_success(logdir, alias, filename) == False:
                     uploaded = False
-                print('check log')
-                print(filename, uploaded)
-                    
             
             # check the exit status of the jobs uploading files
             for jobName in job_names.split(';'):
                 if get_job_exit_status(jobName) != '0':
                     uploaded = False
-                print('check exit')
-                print(jobName, uploaded)   
             
             # check if files are uploaded on the server
             for file_path in files:
@@ -2860,9 +2843,6 @@ def check_upload_files(credential_file, database, table, box, ega_object, alias,
                 for j in [encryptedFile, encryptedMd5, originalMd5]:
                     if j not in files_box[stage_path]:
                         uploaded = False
-                    print('check upload')
-                    print(j, uploaded)
-            
             
             # check if all files for that alias have been uploaded
             if uploaded == True:
