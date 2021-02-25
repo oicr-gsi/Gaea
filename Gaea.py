@@ -2955,7 +2955,7 @@ def remove_files_after_submission(credential_file, database, table, box, remove,
 
 
 # use this function to check upload    
-def check_upload(ega_object, credential_file, submission_database, table, box, alias, jobnames, attributes_table):
+def check_upload(ega_object, credential_file, submission_database, table, box, alias, jobnames, working_dir, attributes_table):
     '''    
     (str, str, str, str, str, str, str)
     
@@ -2971,14 +2971,15 @@ def check_upload(ega_object, credential_file, submission_database, table, box, a
     - box (str): EGA submission box (ega-box-xxxx)
     - alias (str): Unique identifier for the uploaded files   
     - jobnames (str): semi-colon-separated list of job names used for uploading all the files under a given alias
+    - working_dir (str): Parent directory containing sub-folders where encrypted files are located
     - attributes_table (str): Table storing analysis attributes information
     '''
     
     if ega_object == 'analyses':
         # check that files have been successfully uploaded, update status uploading -> uploaded or rest status uploading -> upload
-        check_upload_files(credential_file, submission_database, table, box, ega_object, alias, jobnames, attributes = attributes_table)
+        check_upload_files(credential_file, submission_database, table, box, ega_object, alias, jobnames, working_dir, attributes = attributes_table)
     elif args.object == 'runs':
-        check_upload_files(credential_file, submission_database, table, box, ega_object, alias, jobnames)
+        check_upload_files(credential_file, submission_database, table, box, ega_object, alias, jobnames, working_dir)
     
 
 def create_json(credential_file, submission_database, metadata_database, table, ega_object, working_dir, key_ring, memory, disk_space, samples_attributes_table, analysis_attributes_table, projects_table, footprint_table, max_uploads, max_footprint, remove, box):
@@ -5592,6 +5593,7 @@ if __name__ == '__main__':
     CheckUploadParser.add_argument('-a', '--Alias', dest='alias', help='Object alias', required=True)
     CheckUploadParser.add_argument('-j', '--Jobs', dest='jobnames', help='Colon-separated string of job names used for uploading all files under a given alias', required=True)
     CheckUploadParser.add_argument('-o', '--Object', dest='object', choices=['analyses', 'runs'], help='EGA object to register (runs or analyses', required=True)
+    CheckUploadParser.add_argument('-w', '--WorkingDir', dest='workingdir', default='/scratch2/groups/gsi/bis/EGA_Submissions', help='Directory where subdirectories used for submissions are written. Default is /scratch2/groups/gsi/bis/EGA_Submissions')
     CheckUploadParser.add_argument('-at', '--Attributes', dest='attributes', default='AnalysesAttributes', help='DataBase table. Default is AnalysesAttributes')
     
     # re-upload registered files that cannot be archived       
