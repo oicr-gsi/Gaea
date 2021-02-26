@@ -15,7 +15,6 @@ import requests
 import uuid
 import xml.etree.ElementTree as ET
 import gzip
-from ftplib import FTP
 
 
 def extract_credentials(credential_file):
@@ -1327,11 +1326,9 @@ def get_subdirectories(user_name, password, directory):
     '''
     
     # make a list of directories on the staging servers
-    ftp = FTP(host='ftp.ega.ebi.ac.uk', user = user_name, passwd=password)
-    a = []
-    ftp.cwd(directory)
-    ftp.dir(a.append)
-    content = [directory + '/' + i.split()[-1] for i in a if i.startswith('d')]
+    cmd = "ssh xfer4.res.oicr.on.ca \"lftp -u {0},{1} -e \\\" set ftp:ssl-allow false; ls {2} ; bye;\\\" ftp://ftp.ega.ebi.ac.uk\"".format(user_name, password, directory)
+    a = subprocess.check_output(cmd, shell=True).decode('utf-8').rstrip().split('\n')
+    content = [os.path.join(directory, i.split()[-1]) for i in a if i.startswith('d')]
     return content
 
     
@@ -1389,16 +1386,9 @@ def extract_file_size_staging_server(credential_file, box, directory):
     # get credentials
     credentials = extract_credentials(credential_file)
         
-    # make a list of files under directory on the staging server
-    # connect to the ega box
-    ftp = FTP(host='ftp.ega.ebi.ac.uk', user = box, passwd=credentials[box])
-    # navigate to directory
-    ftp.cwd(directory)
-    # list directory's content
-    content = []
-    ftp.retrlines('LIST', content.append)
-    # grab the files in directory
-    files = [i for i in content if i.startswith('-')]
+    cmd = "ssh xfer4.res.oicr.on.ca \"lftp -u {0},{1} -e \\\" set ftp:ssl-allow false; ls {2} ; bye;\\\" ftp://ftp.ega.ebi.ac.uk\"".format(box, credentials[box], directory)
+    a = subprocess.check_output(cmd, shell=True).decode('utf-8').rstrip().split('\n')
+    files = [i for i in a if i.startswith('-')]
     # extract file size for all files {filepath: file_size}
     size = {}
     for S in files:
@@ -2274,34 +2264,6 @@ def check_encryption(credential_file, database, table, box, alias, ega_object, j
         conn.close()
 
 
-def create_destination_directory(box, password, directory):
-    '''
-    (str, str, str) -> None    
-    
-    Create directory and parent directories on the EGA box's staging server
-    
-    Parameters
-    ----------
-    - box (str): EGA submission box (ega-box-xxx)
-    - password (str): Password to connect to the EGA box
-    - directory (str): Directory to be created on the box staging server
-    '''
-    
-    # connect to the box's staging server
-    ftp = FTP(host='ftp.ega.ebi.ac.uk', user = box, passwd=password)
-    # make a list of directories
-    L = directory.split('/')
-    directories = []
-    for i in range(len(L)):
-        directories.append('/'.join(L[0:i+1]))
-    for i in directories:
-        try:
-            ftp.mkd(i)
-        except:
-            print('directory {0} already exists'.format(i))
-    ftp.quit()
-
-
 def upload_alias_files(alias, files, stage_path, file_dir, credential_file, database, table, ega_object, box, mem, **KeyWordParams):
     '''
     (str, dict, str, str, str, str, str, str, str, int, dict) -> list
@@ -2338,7 +2300,7 @@ def upload_alias_files(alias, files, stage_path, file_dir, credential_file, data
     os.makedirs(logdir, exist_ok=True)
         
     # command to upload files. requires aspera to be installed
-    upload_cmd = "export ASPERA_SCP_PASS={0};ascp -P33001 -O33001 -QT -l300M {1} {2}@fasp.ega.ebi.ac.uk:{3};ascp -P33001 -O33001 -QT -l300M {4} {2}@fasp.ega.ebi.ac.uk:{3};ascp -P33001 -O33001 -QT -l300M {5} {2}@fasp.ega.ebi.ac.uk:{3};"
+    upload_cmd = "ssh xfer4.res.oicr.on.ca \"export ASPERA_SCP_PASS={0};ascp -P33001 -O33001 -QT -l300M {1} {2}@fasp.ega.ebi.ac.uk:{3};ascp -P33001 -O33001 -QT -l300M {4} {2}@fasp.ega.ebi.ac.uk:{3};ascp -P33001 -O33001 -QT -l300M {5} {2}@fasp.ega.ebi.ac.uk:{3};\""
       
     # create parallel lists to store the job names and exit codes
     job_exits, job_names = [], []
@@ -2347,8 +2309,20 @@ def upload_alias_files(alias, files, stage_path, file_dir, credential_file, data
     file_paths = list(files.keys())
     
     # create destination directory
-    create_destination_directory(box, credentials[box], stage_path)
+    make_dir_cmd = "ssh xfer4.res.oicr.on.ca \"lftp -u {0},{1} -e \\\" set ftp:ssl-allow false; mkdir -p {2}; bye;\\\" ftp://ftp.ega.ebi.ac.uk\""
+    # put commands in shell script
+    bashscript = os.path.join(qsubdir, alias + '_make_destination_directory.sh')
+    with open(bashscript, 'w') as newfile:
+        newfile.write(make_dir_cmd.format(box, credentials[box], stage_path))    
+    # launch job directly for the 1st file only
+    jobName = 'MakeDestinationDir.{0}'.format(alias)
+    qsub_cmd = "qsub -b y -P gsi -N {0} -e {1} -o {1} \"bash {2}\"".format(jobName, logdir, bashscript)
+    job = subprocess.call(qsub_cmd, shell=True)
+    # record job name but not exit code.
+    # may produce an error message if directory already exists. do not evaluate command during CheckUpload
+    job_names.append(jobName)
         
+    
     # loop over filepaths
     for i in range(len(file_paths)):
         # get filename and encryptedname
@@ -2365,16 +2339,13 @@ def upload_alias_files(alias, files, stage_path, file_dir, credential_file, data
             newfile.write(MyCmd + '\n')
             newfile.close()
             # launch job directly
-            JobName = 'Upload.{0}'.format(alias + '__' + fileName)
-            if len(job_names) == 0:
-                QsubCmd = "qsub -b y -P gsi -l h_vmem={0}g -N {1} -e {2} -o {2} \"bash {3}\"".format(mem, JobName, logdir, BashScript)
-            else:
-                # hold until previous job is done
-                QsubCmd = "qsub -b y -P gsi -hold_jid {0} -l h_vmem={1}g -N {2} -e {3} -o {3} \"bash {4}\"".format(job_names[-1], mem, JobName, logdir, BashScript)
-            job = subprocess.call(QsubCmd, shell=True)
+            jobName = 'Upload.{0}'.format(alias + '__' + fileName)
+            # hold until previous job is done
+            qsub_cmd = "qsub -b y -P gsi -hold_jid {0} -l h_vmem={1}g -N {2} -e {3} -o {3} \"bash {4}\"".format(job_names[-1], mem, jobName, logdir, BashScript)
+            job = subprocess.call(qsub_cmd, shell=True)
             # store job exit code and name
             job_exits.append(job)
-            job_names.append(JobName)
+            job_names.append(jobName)
         else:
             return [-1]
     
@@ -2386,6 +2357,8 @@ def upload_alias_files(alias, files, stage_path, file_dir, credential_file, data
     elif ega_object == 'runs':
         CheckCmd = 'sleep 600; module load gaea; Gaea check_upload -c {0} -s {1} -t {2} -b {3} -a {4} -j \"{5}\" -o {6}' 
     
+    # do not check job used to make destination directory
+    job_names = job_names[1:]
     # put commands in shell script
     BashScript = os.path.join(qsubdir, alias + '_check_upload.sh')
     with open(BashScript, 'w') as newfile:
@@ -2500,7 +2473,6 @@ def upload_object_files(credential_file, database, table, ega_object, footprint_
                 conn.close()
 
 
-
 def get_files_staging_server(box, password, directory):
     '''
     (str, str, str) -> list
@@ -2514,20 +2486,10 @@ def get_files_staging_server(box, password, directory):
     - directory (str): Directory on the EGA box' staging server
     '''
     
-    # connect to the EGA ftp server
-    ftp = FTP(host='ftp.ega.ebi.ac.uk', user = box, passwd = password)
-    # navigate to directory
-    ftp.cwd(directory)
-    # make a list with the directory's content
-    content = []
-    ftp.dir(content.append)
-    # make a list of file paths in directory
-    uploaded_files = [os.path.join(directory, i.split()[-1]) for i in content if i.startswith('-')]
+    uploaded_files = subprocess.check_output("ssh xfer4.res.oicr.on.ca 'lftp -u {0},{1} -e \"set ftp:ssl-allow false; ls {2}; bye;\" ftp://ftp.ega.ebi.ac.uk'".format(box, password, directory), shell=True).decode('utf-8').rstrip().split('\n')
     # get the file paths
     for i in range(len(uploaded_files)):
         uploaded_files[i] = uploaded_files[i].split()[-1]
-    ftp.quit()
-    
     return uploaded_files
     
       
@@ -2586,7 +2548,6 @@ def list_files_staging_server(credential_file, database, table, box, ega_object,
                 uploaded_files = get_files_staging_server(box, credentials[box], i)
                 # populate dict
                 files_box[i] = uploaded_files
-                
     return files_box
 
 
@@ -2882,6 +2843,7 @@ def check_upload_files(credential_file, database, table, box, ega_object, alias,
                 for j in [encryptedFile, encryptedMd5, originalMd5]:
                     if j not in files_box[stage_path]:
                         uploaded = False
+            
             # check if all files for that alias have been uploaded
             if uploaded == True:
                 # connect to database, update status and close connection
@@ -2982,7 +2944,7 @@ def remove_files_after_submission(credential_file, database, table, box, remove,
 
 
 # use this function to check upload    
-def check_upload(ega_object, credential_file, submission_database, table, box, alias, jobnames, attributes_table):
+def check_upload(ega_object, credential_file, submission_database, table, box, alias, jobnames, working_dir, attributes_table):
     '''    
     (str, str, str, str, str, str, str)
     
@@ -2998,14 +2960,15 @@ def check_upload(ega_object, credential_file, submission_database, table, box, a
     - box (str): EGA submission box (ega-box-xxxx)
     - alias (str): Unique identifier for the uploaded files   
     - jobnames (str): semi-colon-separated list of job names used for uploading all the files under a given alias
+    - working_dir (str): Parent directory containing sub-folders where encrypted files are located
     - attributes_table (str): Table storing analysis attributes information
     '''
     
     if ega_object == 'analyses':
         # check that files have been successfully uploaded, update status uploading -> uploaded or rest status uploading -> upload
-        check_upload_files(credential_file, submission_database, table, box, ega_object, alias, jobnames, attributes = attributes_table)
+        check_upload_files(credential_file, submission_database, table, box, ega_object, alias, jobnames, working_dir, attributes = attributes_table)
     elif args.object == 'runs':
-        check_upload_files(credential_file, submission_database, table, box, ega_object, alias, jobnames)
+        check_upload_files(credential_file, submission_database, table, box, ega_object, alias, jobnames, working_dir)
     
 
 def create_json(credential_file, submission_database, metadata_database, table, ega_object, working_dir, key_ring, memory, disk_space, samples_attributes_table, analysis_attributes_table, projects_table, footprint_table, max_uploads, max_footprint, remove, box):
@@ -4644,7 +4607,7 @@ def add_dataset_info(credential_file, submission_database, metadata_database, ta
                     columns.append(fields[i] + ' TEXT NULL')
                 elif fields[i] in ['Json', 'Receipt']:
                     columns.append(fields[i] + ' MEDIUMTEXT NULL,')
-                elif fields[i] in ['runsReferences', 'analysisReferences']:
+                elif fields[i] in ['runsReferences', 'analysisReferences', 'datasetTypeIds']:
                     columns.append(fields[i] + ' LONGTEXT NULL,')
                 elif fields[i] == 'alias':
                     columns.append(fields[i] + ' VARCHAR(100) PRIMARY KEY UNIQUE,')
@@ -4846,6 +4809,8 @@ def add_sample_info(credential_file, metadata_database, submission_database, tab
                 columns.append(fields[i] + ' TEXT NULL')
             elif fields[i] in ['Json', 'Receipt', 'files']:
                 columns.append(fields[i] + ' MEDIUMTEXT NULL,')
+            elif fields[i] == 'phenotype':
+                columns.append(fields[i] + ' LONGTEXT NULL,')
             elif fields[i] == 'alias':
                 columns.append(fields[i] + ' VARCHAR(100) PRIMARY KEY UNIQUE,')
             else:
@@ -5619,6 +5584,7 @@ if __name__ == '__main__':
     CheckUploadParser.add_argument('-a', '--Alias', dest='alias', help='Object alias', required=True)
     CheckUploadParser.add_argument('-j', '--Jobs', dest='jobnames', help='Colon-separated string of job names used for uploading all files under a given alias', required=True)
     CheckUploadParser.add_argument('-o', '--Object', dest='object', choices=['analyses', 'runs'], help='EGA object to register (runs or analyses', required=True)
+    CheckUploadParser.add_argument('-w', '--WorkingDir', dest='workingdir', default='/scratch2/groups/gsi/bis/EGA_Submissions', help='Directory where subdirectories used for submissions are written. Default is /scratch2/groups/gsi/bis/EGA_Submissions')
     CheckUploadParser.add_argument('-at', '--Attributes', dest='attributes', default='AnalysesAttributes', help='DataBase table. Default is AnalysesAttributes')
     
     # re-upload registered files that cannot be archived       
@@ -5724,7 +5690,7 @@ if __name__ == '__main__':
     elif args.subparser_name == 'check_encryption':
         check_encryption(args.credential, args.subdb, args.table, args.box, args.alias, args.object, args.jobnames, args.workingdir)
     elif args.subparser_name == 'check_upload':
-        check_upload(args.object, args.credential, args.subdb, args.table, args.box, args.alias, args.jobnames, args.attributes)
+        check_upload(args.object, args.credential, args.subdb, args.table, args.box, args.alias, args.jobnames, args.workingdir, args.attributes)
     elif args.subparser_name == 'collect':
         collect_registered_metadata(args.credential, args.box, args.chunksize, args.URL, args.metadatadb)
     elif args.subparser_name == 'add_info':
