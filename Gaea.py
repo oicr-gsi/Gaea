@@ -4652,7 +4652,7 @@ def add_dataset_info(credential_file, submission_database, metadata_database, ta
                     "policyId": policy, "runsReferences": ';'.join(runs_references),
                     "analysisReferences": ';'.join(analysis_references), "title": title,
                     "description": description, "datasetLinks": ';'.join(links),
-                    "attributes": ';'.join(attributes), 'Status': 'start', 'egaBox': box}            
+                    "attributes": ';'.join(dataset_attributes), 'Status': 'start', 'egaBox': box}            
             # list values according to the table column order
             L = [D[field] if field in D else '' for field in fields]
             # convert data to strings, converting missing values to NULL
