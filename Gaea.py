@@ -5538,7 +5538,7 @@ if __name__ == '__main__':
     parent_parser.add_argument('-c', '--Credentials', dest='credential', help='file with database credentials', required=True)
     parent_parser.add_argument('-md', '--MetadataDb', dest='metadatadb', default='EGA', help='Name of the database collection EGA metadata. Default is EGA')
     parent_parser.add_argument('-sd', '--SubDb', dest='subdb', default='EGASUB', help='Name of the database used to object information for submission to EGA. Default is EGASUB')
-    parent_parser.add_argument('-b', '--Box', dest='box', choices=['ega-box-12', 'ega-box-137', 'ega-box-1269', 'ega-box-1843', 'ega-box-499'], help='Box where objects will be registered', required=True)
+    parent_parser.add_argument('-b', '--Box', dest='box', help='Box where objects will be registered', required=True)
     
     # create main parser
     main_parser = argparse.ArgumentParser(prog = 'Gaea.py', description='manages EGA submissions')
@@ -5564,7 +5564,7 @@ if __name__ == '__main__':
     RegisterParser.add_argument('-mm', '--Mem', dest='memory', default='10', help='Memory allocated to encrypting files. Default is 10G')
     RegisterParser.add_argument('-mx', '--Max', dest='maxuploads', default=8, type=int, help='Maximum number of files to be uploaded at once. Default is 8')
     RegisterParser.add_argument('-mxf', '--MaxFootPrint', dest='maxfootprint', default=15, type=int, help='Maximum footprint of non-registered files on the box\'s staging sever. Default is 15Tb')
-    RegisterParser.add_argument('-p', '--Portal', dest='portal', default='https://ega.crg.eu/submitterportal/v1', help='EGA submission portal. Default is https://ega.crg.eu/submitterportal/v1')
+    RegisterParser.add_argument('-p', '--Portal', dest='portal', default='https://ega-archive.org/submission-api/v1', help='EGA submission portal. Default is https://ega-archive.org/submission-api/v1')
     RegisterParser.add_argument('--Remove', dest='remove', action='store_true', help='Delete encrypted and md5 files when analyses are successfully submitted. Do not delete by default')
     RegisterParser.add_argument('-sat', '--SamplesAttributesTable', dest='samples_attributes_table', default='SamplesAttributes', help='Database Table with samples attributes information. Default is SamplesAttributes')
     RegisterParser.add_argument('-aat', '--AnalysisAttributesTable', dest='analysis_attributes_table', default='AnalysesAttributes', help='Database Table with analyses attributes information. Default is AnalysesAttributes')
