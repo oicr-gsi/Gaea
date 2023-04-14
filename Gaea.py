@@ -1326,7 +1326,7 @@ def get_subdirectories(user_name, password, directory):
     '''
     
     # make a list of directories on the staging servers
-    cmd = "ssh xfer4.res.oicr.on.ca \"lftp -u {0},{1} -e \\\" set ftp:ssl-allow false; ls {2} ; bye;\\\" ftp://ftp.ega.ebi.ac.uk\"".format(user_name, password, directory)
+    cmd = "ssh xfer1.res.oicr.on.ca \"lftp -u {0},{1} -e \\\" set ftp:ssl-allow false; ls {2} ; bye;\\\" ftp://ftp.ega.ebi.ac.uk\"".format(user_name, password, directory)
     a = subprocess.check_output(cmd, shell=True).decode('utf-8').rstrip().split('\n')
     content = [os.path.join(directory, i.split()[-1]) for i in a if i.startswith('d')]
     return content
@@ -1386,7 +1386,7 @@ def extract_file_size_staging_server(credential_file, box, directory):
     # get credentials
     credentials = extract_credentials(credential_file)
         
-    cmd = "ssh xfer4.res.oicr.on.ca \"lftp -u {0},{1} -e \\\" set ftp:ssl-allow false; ls {2} ; bye;\\\" ftp://ftp.ega.ebi.ac.uk\"".format(box, credentials[box], directory)
+    cmd = "ssh xfer1.res.oicr.on.ca \"lftp -u {0},{1} -e \\\" set ftp:ssl-allow false; ls {2} ; bye;\\\" ftp://ftp.ega.ebi.ac.uk\"".format(box, credentials[box], directory)
     a = subprocess.check_output(cmd, shell=True).decode('utf-8').rstrip().split('\n')
     files = [i for i in a if i.startswith('-')]
     # extract file size for all files {filepath: file_size}
@@ -2300,7 +2300,7 @@ def upload_alias_files(alias, files, stage_path, file_dir, credential_file, data
     os.makedirs(logdir, exist_ok=True)
         
     # command to upload files. requires aspera to be installed
-    upload_cmd = "ssh xfer4.res.oicr.on.ca \"export ASPERA_SCP_PASS={0};ascp -P33001 -O33001 -QT -l300M {1} {2}@fasp.ega.ebi.ac.uk:{3};ascp -P33001 -O33001 -QT -l300M {4} {2}@fasp.ega.ebi.ac.uk:{3};ascp -P33001 -O33001 -QT -l300M {5} {2}@fasp.ega.ebi.ac.uk:{3};\""
+    upload_cmd = "ssh xfer1.res.oicr.on.ca \"export ASPERA_SCP_PASS={0};ascp -P33001 -O33001 -QT -l300M {1} {2}@fasp.ega.ebi.ac.uk:{3};ascp -P33001 -O33001 -QT -l300M {4} {2}@fasp.ega.ebi.ac.uk:{3};ascp -P33001 -O33001 -QT -l300M {5} {2}@fasp.ega.ebi.ac.uk:{3};\""
       
     # create parallel lists to store the job names and exit codes
     job_exits, job_names = [], []
@@ -2309,7 +2309,7 @@ def upload_alias_files(alias, files, stage_path, file_dir, credential_file, data
     file_paths = list(files.keys())
     
     # create destination directory
-    make_dir_cmd = "ssh xfer4.res.oicr.on.ca \"lftp -u {0},{1} -e \\\" set ftp:ssl-allow false; mkdir -p {2}; bye;\\\" ftp://ftp.ega.ebi.ac.uk\""
+    make_dir_cmd = "ssh xfer1.res.oicr.on.ca \"lftp -u {0},{1} -e \\\" set ftp:ssl-allow false; mkdir -p {2}; bye;\\\" ftp://ftp.ega.ebi.ac.uk\""
     # put commands in shell script
     bashscript = os.path.join(qsubdir, alias + '_make_destination_directory.sh')
     with open(bashscript, 'w') as newfile:
@@ -2486,7 +2486,7 @@ def get_files_staging_server(box, password, directory):
     - directory (str): Directory on the EGA box' staging server
     '''
     
-    uploaded_files = subprocess.check_output("ssh xfer4.res.oicr.on.ca 'lftp -u {0},{1} -e \"set ftp:ssl-allow false; ls {2}; bye;\" ftp://ftp.ega.ebi.ac.uk'".format(box, password, directory), shell=True).decode('utf-8').rstrip().split('\n')
+    uploaded_files = subprocess.check_output("ssh xfer1.res.oicr.on.ca 'lftp -u {0},{1} -e \"set ftp:ssl-allow false; ls {2}; bye;\" ftp://ftp.ega.ebi.ac.uk'".format(box, password, directory), shell=True).decode('utf-8').rstrip().split('\n')
     # get the file paths
     for i in range(len(uploaded_files)):
         uploaded_files[i] = uploaded_files[i].split()[-1]
