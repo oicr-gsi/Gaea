@@ -1312,9 +1312,9 @@ def get_job_exit_status(job_name):
             return '1'
     
 
-def get_subdirectories(user_name, password, directory):
+def get_subdirectories(user_name, password, directory, host):
     '''
-    (str, str, str) -> list
+    (str, str, str, str) -> list
     
     Returns a list of sub-directories in directory in the box' staging server
     
@@ -1323,18 +1323,19 @@ def get_subdirectories(user_name, password, directory):
     - user_name (str): EGA submission box
     - password (str): Password for the EGA submission box
     - directory (str): Directory on the box' staging server
+    - host (str): xfer host server
     '''
     
     # make a list of directories on the staging servers
-    cmd = "ssh xfer1.res.oicr.on.ca \"lftp -u {0},{1} -e \\\" set ftp:ssl-allow false; ls {2} ; bye;\\\" ftp://ftp.ega.ebi.ac.uk\"".format(user_name, password, directory)
+    cmd = "ssh {0} \"lftp -u {1},{2} -e \\\" set ftp:ssl-allow false; ls {3} ; bye;\\\" ftp://ftp.ega.ebi.ac.uk\"".format(host, user_name, password, directory)
     a = subprocess.check_output(cmd, shell=True).decode('utf-8').rstrip().split('\n')
     content = [os.path.join(directory, i.split()[-1]) for i in a if i.startswith('d')]
     return content
 
     
-def list_directories_staging_server(credential_file, box):
+def list_directories_staging_server(credential_file, box, host):
     '''
-    (str, str) -> list
+    (str, str, host) -> list
     
     Returns a list of all directories on the staging server of the given box
     
@@ -1342,6 +1343,7 @@ def list_directories_staging_server(credential_file, box):
     ----------
     - credential_file (str): File with EGA boxes and database credentials
     - box (str): EGA submission box (ega-box-xxx)
+    - host (str): Xfer host server
     '''
     
     # get box credentials
@@ -1349,7 +1351,7 @@ def list_directories_staging_server(credential_file, box):
     # exclude EGA-owned directories
     exclude = ['MD5_daily_reports', 'metadata']
     # make a list of directories on the staging server 
-    a = get_subdirectories(box, credentials[box], '')
+    a = get_subdirectories(box, credentials[box], '', host)
     # dump all sub-directories into the collecting list
     # skip EGA-owned directories
     b = [i for i in a if i not in exclude]
@@ -1363,16 +1365,16 @@ def list_directories_staging_server(credential_file, box):
         for i in b:
             # ignore if already checked and ignore EGA-owned directories
             if i not in checked and i not in exclude:
-                b.extend(get_subdirectories(box, credentials[box], i))
+                b.extend(get_subdirectories(box, credentials[box], i, host))
                 checked.append(i)
         # update L
         L.append(len(b))
     return b
 
 
-def extract_file_size_staging_server(credential_file, box, directory):
+def extract_file_size_staging_server(credential_file, box, directory, host):
     '''
-    (str, str, str) -> dict
+    (str, str, str, str) -> dict
     
     Returns a dictionary with file size for all files in directory
     
@@ -1381,12 +1383,13 @@ def extract_file_size_staging_server(credential_file, box, directory):
     - credential_file (str): File with EGA box and database credentials
     - box (str): EGA submission box (ega-box-xxxx)
     - directory (str): Directory on the box' staging server
+    - host (str): Xfer host server
     '''
     
     # get credentials
     credentials = extract_credentials(credential_file)
         
-    cmd = "ssh xfer1.res.oicr.on.ca \"lftp -u {0},{1} -e \\\" set ftp:ssl-allow false; ls {2} ; bye;\\\" ftp://ftp.ega.ebi.ac.uk\"".format(box, credentials[box], directory)
+    cmd = "ssh {0} \"lftp -u {1},{2} -e \\\" set ftp:ssl-allow false; ls {3} ; bye;\\\" ftp://ftp.ega.ebi.ac.uk\"".format(host, box, credentials[box], directory)
     a = subprocess.check_output(cmd, shell=True).decode('utf-8').rstrip().split('\n')
     files = [i for i in a if i.startswith('-')]
     # extract file size for all files {filepath: file_size}
@@ -1507,9 +1510,9 @@ def merge_file_info_staging_server(file_size, registered_files, box):
     return D
 
 
-def add_file_info_staging_server(credential_file, metadata_database, submission_database, analysis_table, runs_table, staging_server_table, box):
+def add_file_info_staging_server(credential_file, metadata_database, submission_database, analysis_table, runs_table, staging_server_table, box, host):
     '''
-    (str, str, str, str, str, str, str) -> None
+    (str, str, str, str, str, str, str, str) -> None
     
     Populates table StagingServerTable in the submission database with file information
     including size and accession IDs for files on the box's staging server
@@ -1523,12 +1526,13 @@ def add_file_info_staging_server(credential_file, metadata_database, submission_
     - runs_table (str): Table storing run information 
     - staging_server_table (str): Table storing file information on the EGA staging server
     - box (str): EGA submission box (ega-box-xxx)
+    - host (str): Xfer host server
     '''
     
     # list all directories on the staging server of box
-    directories = list_directories_staging_server(credential_file, box)
+    directories = list_directories_staging_server(credential_file, box, host)
     # Extract file size for all files on the staging server
-    file_size = [extract_file_size_staging_server(credential_file, box, i) for i in directories]
+    file_size = [extract_file_size_staging_server(credential_file, box, i, host) for i in directories]
     # Extract md5sums and accessions from the metadata database
     registered_analyses = map_files_to_checksum(credential_file, metadata_database, analysis_table, box)
     registered_runs = map_files_to_checksum(credential_file, metadata_database, runs_table, box)
@@ -2264,9 +2268,9 @@ def check_encryption(credential_file, database, table, box, alias, ega_object, j
         conn.close()
 
 
-def upload_alias_files(alias, files, stage_path, file_dir, credential_file, database, table, ega_object, box, mem, **KeyWordParams):
+def upload_alias_files(alias, host, files, stage_path, file_dir, credential_file, database, table, ega_object, box, mem, **KeyWordParams):
     '''
-    (str, dict, str, str, str, str, str, str, str, int, dict) -> list
+    (str, str, dict, str, str, str, str, str, str, str, int, dict) -> list
     
     Return a list of exit codes for the jobs used for uploading the encrypted and md5 files to stage_path 
     
@@ -2274,6 +2278,7 @@ def upload_alias_files(alias, files, stage_path, file_dir, credential_file, data
     ----------
     
     - alias (str): Unique alias of the EGA object
+    - host (str): xfer host server
     - files (dict): Dictionary with the alias' files information
     - StagePath (str): Destination directory of the uploaded files on the box' staging server
     - file_dir (str): Directory where encrypted files are located on the file system
@@ -2300,7 +2305,7 @@ def upload_alias_files(alias, files, stage_path, file_dir, credential_file, data
     os.makedirs(logdir, exist_ok=True)
         
     # command to upload files. requires aspera to be installed
-    upload_cmd = "ssh xfer1.res.oicr.on.ca \"export ASPERA_SCP_PASS={0};ascp -P33001 -O33001 -QT -l300M {1} {2}@fasp.ega.ebi.ac.uk:{3};ascp -P33001 -O33001 -QT -l300M {4} {2}@fasp.ega.ebi.ac.uk:{3};ascp -P33001 -O33001 -QT -l300M {5} {2}@fasp.ega.ebi.ac.uk:{3};\""
+    upload_cmd = "ssh {0} \"export ASPERA_SCP_PASS={1};ascp -P33001 -O33001 -QT -l300M {2} {3}@fasp.ega.ebi.ac.uk:{4};ascp -P33001 -O33001 -QT -l300M {5} {3}@fasp.ega.ebi.ac.uk:{4};ascp -P33001 -O33001 -QT -l300M {6} {3}@fasp.ega.ebi.ac.uk:{4};\""
       
     # create parallel lists to store the job names and exit codes
     job_exits, job_names = [], []
@@ -2309,11 +2314,11 @@ def upload_alias_files(alias, files, stage_path, file_dir, credential_file, data
     file_paths = list(files.keys())
     
     # create destination directory
-    make_dir_cmd = "ssh xfer1.res.oicr.on.ca \"lftp -u {0},{1} -e \\\" set ftp:ssl-allow false; mkdir -p {2}; bye;\\\" ftp://ftp.ega.ebi.ac.uk\""
+    make_dir_cmd = "ssh {0} \"lftp -u {1},{2} -e \\\" set ftp:ssl-allow false; mkdir -p {3}; bye;\\\" ftp://ftp.ega.ebi.ac.uk\""
     # put commands in shell script
     bashscript = os.path.join(qsubdir, alias + '_make_destination_directory.sh')
     with open(bashscript, 'w') as newfile:
-        newfile.write(make_dir_cmd.format(box, credentials[box], stage_path))    
+        newfile.write(make_dir_cmd.format(host, box, credentials[box], stage_path))    
     # launch job directly for the 1st file only
     jobName = 'MakeDestinationDir.{0}'.format(alias)
     qsub_cmd = "qsub -b y -P gsi -N {0} -e {1} -o {1} \"bash {2}\"".format(jobName, logdir, bashscript)
@@ -2332,7 +2337,7 @@ def upload_alias_files(alias, files, stage_path, file_dir, credential_file, data
         originalMd5 = os.path.join(file_dir, encryptedName[:-4]  + '.md5')
         encryptedMd5 = os.path.join(file_dir, encryptedName + '.md5')
         if os.path.isfile(encryptedFile) and os.path.isfile(originalMd5) and os.path.isfile(encryptedMd5):
-            MyCmd = upload_cmd.format(credentials[box], encryptedMd5, box, stage_path, originalMd5, encryptedFile)
+            MyCmd = upload_cmd.format(host, credentials[box], encryptedMd5, box, stage_path, originalMd5, encryptedFile)
             # put command in a shell script    
             BashScript = os.path.join(qsubdir, alias + '_' + encryptedName[:-4] + '_upload.sh')
             newfile = open(BashScript, 'w')
@@ -2353,9 +2358,9 @@ def upload_alias_files(alias, files, stage_path, file_dir, credential_file, data
     if ega_object == 'analyses':
         if 'attributes' in KeyWordParams:
             attributes_table = KeyWordParams['attributes']
-        CheckCmd = 'sleep 600; module load gaea; Gaea check_upload -c {0} -s {1} -t {2} -b {3} -a {4} -j \"{5}\" -o {6} --Attributes {7}'
+        CheckCmd = 'sleep 600; module load gaea; Gaea check_upload -c {0} -s {1} -t {2} -b {3} -a {4} -j \"{5}\" -o {6} --Attributes {7} -ht {8}'
     elif ega_object == 'runs':
-        CheckCmd = 'sleep 600; module load gaea; Gaea check_upload -c {0} -s {1} -t {2} -b {3} -a {4} -j \"{5}\" -o {6}' 
+        CheckCmd = 'sleep 600; module load gaea; Gaea check_upload -c {0} -s {1} -t {2} -b {3} -a {4} -j \"{5}\" -o {6} -ht {7}' 
     
     # do not check job used to make destination directory
     job_names = job_names[1:]
@@ -2363,9 +2368,9 @@ def upload_alias_files(alias, files, stage_path, file_dir, credential_file, data
     BashScript = os.path.join(qsubdir, alias + '_check_upload.sh')
     with open(BashScript, 'w') as newfile:
         if ega_object == 'analyses':
-            newfile.write(CheckCmd.format(credential_file, database, table, box, alias, ';'.join(job_names), ega_object, attributes_table) + '\n')
+            newfile.write(CheckCmd.format(credential_file, database, table, box, alias, ';'.join(job_names), ega_object, attributes_table, host) + '\n')
         elif ega_object == 'runs':
-            newfile.write(CheckCmd.format(credential_file, database, table, box, alias, ';'.join(job_names), ega_object) + '\n')
+            newfile.write(CheckCmd.format(credential_file, database, table, box, alias, ';'.join(job_names), ega_object, host) + '\n')
             
     # launch qsub directly, collect job names and exit codes
     JobName = 'CheckUpload.{0}'.format(alias)
@@ -2378,15 +2383,16 @@ def upload_alias_files(alias, files, stage_path, file_dir, credential_file, data
     return job_exits
 
 
-def upload_object_files(credential_file, database, table, ega_object, footprint_table, box, mem, Max, max_footprint, working_dir, **KeyWordParams):
+def upload_object_files(credential_file, host, database, table, ega_object, footprint_table, box, mem, Max, max_footprint, working_dir, **KeyWordParams):
     '''
-    (str, str, str, str, str, str, int, int, int, str, dict) -> None
+    (str, str, str, str, str, str, str, int, int, int, str, dict) -> None
     
     Upload files of all aliases in table with upload status 
     
     Parameters
     ----------
     - credential_file (str): File with EGA boxes and database credentials
+    - host (str): xfer host server
     - database (str): Name of database storing information required for registrating EGA objects
     - table (str): Table in database storing information about the files to be uploaded
     - ega_object (str): Registered object at the EGA. Accepted values:
@@ -2460,7 +2466,7 @@ def upload_object_files(credential_file, database, table, ega_object, footprint_
             conn.close()
             
             # upload files
-            job_codes = upload_alias_files(alias, files, stage_path, working_directory, credential_file, database, table, ega_object, box, mem, **KeyWordParams)
+            job_codes = upload_alias_files(alias, host, files, stage_path, working_directory, credential_file, database, table, ega_object, box, mem, **KeyWordParams)
                         
             # check if upload launched properly for all files under that alias
             if not (len(set(job_codes)) == 1 and list(set(job_codes))[0] == 0):
@@ -2473,9 +2479,9 @@ def upload_object_files(credential_file, database, table, ega_object, footprint_
                 conn.close()
 
 
-def get_files_staging_server(box, password, directory):
+def get_files_staging_server(box, password, directory, host):
     '''
-    (str, str, str) -> list
+    (str, str, str, str) -> list
     
     Returns a list of full paths to files under directory 
     
@@ -2484,18 +2490,19 @@ def get_files_staging_server(box, password, directory):
     - box (str): EGA submission box (ega-box-xxx)
     - password (str): Password to connect to the EGA submission box
     - directory (str): Directory on the EGA box' staging server
+    - host (str): Xfer host server
     '''
     
-    uploaded_files = subprocess.check_output("ssh xfer1.res.oicr.on.ca 'lftp -u {0},{1} -e \"set ftp:ssl-allow false; ls {2}; bye;\" ftp://ftp.ega.ebi.ac.uk'".format(box, password, directory), shell=True).decode('utf-8').rstrip().split('\n')
+    uploaded_files = subprocess.check_output("ssh {0} 'lftp -u {1},{2} -e \"set ftp:ssl-allow false; ls {3}; bye;\" ftp://ftp.ega.ebi.ac.uk'".format(host, box, password, directory), shell=True).decode('utf-8').rstrip().split('\n')
     # get the file paths
     for i in range(len(uploaded_files)):
         uploaded_files[i] = uploaded_files[i].split()[-1]
     return uploaded_files
     
       
-def list_files_staging_server(credential_file, database, table, box, ega_object, **KeyWordParams):
+def list_files_staging_server(credential_file, host, database, table, box, ega_object, **KeyWordParams):
     '''
-    (str, str, str, str, str, dict) -> dict
+    (str, str, str, str, str, str, dict) -> dict
     
     Returns a dictionary with files on the EGA box' staging server for all aliases
     in table with uploading status
@@ -2503,6 +2510,7 @@ def list_files_staging_server(credential_file, database, table, box, ega_object,
     Parameters
     ----------
     - credential_file (str): File with EGA boxes and database credentials
+    - host (str) Xfer server host
     - database (str): Database storing information required for registration of EGA objects
     - table (str): Table in database storing information about files to register
     - box (str): EGA submission box (ega-box-xxx)
@@ -2545,7 +2553,7 @@ def list_files_staging_server(credential_file, database, table, box, ega_object,
             # make a list of stagepath
             stage_paths = list(set([i[1] for i in data]))
             for i in stage_paths:
-                uploaded_files = get_files_staging_server(box, credentials[box], i)
+                uploaded_files = get_files_staging_server(box, credentials[box], i, host)
                 # populate dict
                 files_box[i] = uploaded_files
     return files_box
@@ -2763,9 +2771,9 @@ def check_upload_success(logdir, alias, file_name):
         return False
     
     
-def check_upload_files(credential_file, database, table, box, ega_object, alias, job_names, working_dir, **KeyWordParams):
+def check_upload_files(credential_file, host, database, table, box, ega_object, alias, job_names, working_dir, **KeyWordParams):
     '''
-    (str, str, str, str, str, str, str, dict) -> None
+    (str, str, str, str, str, str, str, str, dict) -> None
     
     Updates status of alias from uploading to uploaded if all the files for
     that alias were successfuly uploaded.  
@@ -2773,6 +2781,7 @@ def check_upload_files(credential_file, database, table, box, ega_object, alias,
     Parameters
     ----------
     - credential_file (str): File with EGA boxes and database credentials
+    - host (str): Xfer host server
     - database (str): Database with information required for registering EGA objects
     - table (str): Name of table in database
     - box (str): EGA submission box (ega-box-xxx)
@@ -2785,7 +2794,7 @@ def check_upload_files(credential_file, database, table, box, ega_object, alias,
     '''
 
     # make a dict {directory: [files]} for alias with uploading status 
-    files_box = list_files_staging_server(credential_file, database, table, box, ega_object, **KeyWordParams)
+    files_box = list_files_staging_server(credential_file, host, database, table, box, ega_object, **KeyWordParams)
         
     # connect to database
     conn = connect_to_database(credential_file, database)
@@ -2944,14 +2953,15 @@ def remove_files_after_submission(credential_file, database, table, box, remove,
 
 
 # use this function to check upload    
-def check_upload(ega_object, credential_file, submission_database, table, box, alias, jobnames, working_dir, attributes_table):
+def check_upload(host, ega_object, credential_file, submission_database, table, box, alias, jobnames, working_dir, attributes_table):
     '''    
-    (str, str, str, str, str, str, str)
+    (str, str, str, str, str, str, str, str)
     
     Updates alias status to uploaded if upload is succesfull or reset status to upload
     
     Parameters
     ----------
+    - host (str): Xfer host server
     - ega_object (str): Registered object at the EGA. Accepted values:
                         studies, runs, samples, experiments, datasets, analyses, policies, dacs
     - credential_file (str): File to EGA boxes and database credentials
@@ -2966,14 +2976,14 @@ def check_upload(ega_object, credential_file, submission_database, table, box, a
     
     if ega_object == 'analyses':
         # check that files have been successfully uploaded, update status uploading -> uploaded or rest status uploading -> upload
-        check_upload_files(credential_file, submission_database, table, box, ega_object, alias, jobnames, working_dir, attributes = attributes_table)
+        check_upload_files(credential_file, host, submission_database, table, box, ega_object, alias, jobnames, working_dir, attributes = attributes_table)
     elif args.object == 'runs':
-        check_upload_files(credential_file, submission_database, table, box, ega_object, alias, jobnames, working_dir)
+        check_upload_files(credential_file, host, submission_database, table, box, ega_object, alias, jobnames, working_dir)
     
 
-def create_json(credential_file, submission_database, metadata_database, table, ega_object, working_dir, key_ring, memory, disk_space, samples_attributes_table, analysis_attributes_table, projects_table, footprint_table, max_uploads, max_footprint, remove, box):
+def create_json(credential_file, submission_database, metadata_database, table, ega_object, working_dir, key_ring, memory, disk_space, samples_attributes_table, analysis_attributes_table, projects_table, footprint_table, max_uploads, max_footprint, remove, box, host):
     '''
-    (str, str, str, str, str, str, str, int, int, str, str, str, str, int, int, bool, str) -> None
+    (str, str, str, str, str, str, str, int, int, str, str, str, str, int, int, bool, str, str) -> None
     
     Forms the submission json for a given EGA object and stores the json in the submission database
         
@@ -2997,6 +3007,7 @@ def create_json(credential_file, submission_database, metadata_database, table, 
     - max_footprint (int): Maximum footprint authorized on the EGA box's staging server
     - remove (bool): Remove encrypted after successful upload if True
     - box (str): EGA submission box (ega-box-xxx)
+    - host (str): Xfer host server
     '''
 
     # check if Analyses table exists
@@ -3050,9 +3061,9 @@ def create_json(credential_file, submission_database, metadata_database, table, 
             ## upload files and change the status upload -> uploading 
             ## check that files have been successfully uploaded, update status uploading -> uploaded or rest status uploading -> upload
             if ega_object == 'analyses':
-                upload_object_files(credential_file, submission_database, table, ega_object, footprint_table, box, memory, max_uploads, max_footprint, working_dir, attributes = analysis_attributes_table)
+                upload_object_files(credential_file, host, submission_database, table, ega_object, footprint_table, box, memory, max_uploads, max_footprint, working_dir, attributes = analysis_attributes_table)
             elif ega_object == 'runs':
-                upload_object_files(credential_file, submission_database, table, ega_object, footprint_table, box, memory, max_uploads, max_footprint, working_dir)
+                upload_object_files(credential_file, host, submission_database, table, ega_object, footprint_table, box, memory, max_uploads, max_footprint, working_dir)
             
             ## remove files with uploaded status. does not change status. keep status uploaded --> uploaded
             remove_files_after_submission(credential_file, submission_database, table, box, remove, working_dir)
@@ -3141,7 +3152,7 @@ def submit_metadata(credential_file, submission_database, table, box, ega_object
 def register_ega_objects(credential_file, submission_database, metadata_database, 
                          working_dir, key_ring, memory, disk_space, footprint_table,
                          samples_attributes_table, analysis_attributes_table, projects_table,
-                         max_uploads, max_footprint, remove, portal, box):
+                         max_uploads, max_footprint, remove, portal, box, host):
     '''
     (str, str, str, str, str, str, int, int, str, str, str, str, int, int, bool, str, str) -> None
     
@@ -3165,12 +3176,13 @@ def register_ega_objects(credential_file, submission_database, metadata_database
     - remove (bool): Remove encrypted after successful upload if True
     - portal (str): URL of the EGA submisison API
     - box (str): EGA submission box (ega-box-xxx)
+    - host (str): Xfer host server
     '''
     
     for ega_object in ['studies', 'runs', 'samples', 'experiments', 'datasets', 'analyses', 'policies', 'dacs']:
         table = ega_object.title()    
         # create json
-        create_json(credential_file, submission_database, metadata_database, table, ega_object, working_dir, key_ring, memory, disk_space, samples_attributes_table, analysis_attributes_table, projects_table, footprint_table, max_uploads, max_footprint, remove, box)
+        create_json(credential_file, submission_database, metadata_database, table, ega_object, working_dir, key_ring, memory, disk_space, samples_attributes_table, analysis_attributes_table, projects_table, footprint_table, max_uploads, max_footprint, remove, box, host)
         # submit json and register object
         submit_metadata(credential_file, submission_database, table, box, ega_object, portal)
 
@@ -3362,11 +3374,11 @@ def reupload_registered_files(credential_file, metadata_database, submission_dat
                 edit_submitted_status(credential_file, submission_database, runs_table, alias, box, analysis_enums, working_dir)
         
    
-def file_info_staging_server(credential_file, metadata_database, submission_database, analyses_table, runs_table, staging_table, footprint_table, box):
+def file_info_staging_server(credential_file, metadata_database, submission_database, analyses_table, runs_table, staging_table, footprint_table, box, host):
     '''
     (list) -> None
     
-    (str, str, str, str, str, str, str, str) -> None 
+    (str, str, str, str, str, str, str, str, str) -> None 
     
     Populates staging and footprint tables in submission fatabase with information
     about the files uploaded to the box' staging server
@@ -3381,10 +3393,11 @@ def file_info_staging_server(credential_file, metadata_database, submission_data
     - staging_table (str): Table storing information about files on the box' staging server
     - box (str): EGA submission box (ega-box-xxx)
     - footprint_table (str): Table with foot print by project on the staging servers
+    - host (str): Xfer host server
     '''
 
     # add info for all files on staging server for given box
-    add_file_info_staging_server(credential_file, metadata_database, submission_database, analyses_table, runs_table, staging_table, box)
+    add_file_info_staging_server(credential_file, metadata_database, submission_database, analyses_table, runs_table, staging_table, box, host)
     # summarize data into footprint table
     add_footprint_data(credential_file, submission_database, staging_table, footprint_table, box)
     
@@ -5554,6 +5567,7 @@ if __name__ == '__main__':
     StagingServerParser.add_argument('-at', '--AnalysesTable', dest='analysestable', default='Analyses', help='Submission database table. Default is Analyses')
     StagingServerParser.add_argument('-st', '--StagingTable', dest='stagingtable', default='StagingServer', help='Submission database table. Default is StagingServer')
     StagingServerParser.add_argument('-ft', '--FootprintTable', dest='footprinttable', default='FootPrint', help='Submission database table. Default is FootPrint')
+    StagingServerParser.add_argument('-ht', '--Host', dest='host', default='xfer1.res.oicr.on.ca', help='Name of the xfer server. Default is xfer1.res.oicr.on.ca')
 
     # form json with metadata and register objects through the API       
     RegisterParser = subparsers.add_parser('register', help ='Register EGA objects through the EGA API', parents = [parent_parser])
@@ -5569,6 +5583,7 @@ if __name__ == '__main__':
     RegisterParser.add_argument('-sat', '--SamplesAttributesTable', dest='samples_attributes_table', default='SamplesAttributes', help='Database Table with samples attributes information. Default is SamplesAttributes')
     RegisterParser.add_argument('-aat', '--AnalysisAttributesTable', dest='analysis_attributes_table', default='AnalysesAttributes', help='Database Table with analyses attributes information. Default is AnalysesAttributes')
     RegisterParser.add_argument('-pt', '--ProjectsTable', dest='projects_table', default='AnalysesProjects', help='Database Table with analyses projects information. Default is AnalysesProjects')
+    RegisterParser.add_argument('-ht', '--Host', dest='host', default='xfer1.res.oicr.on.ca', help='Name of the xfer server. Default is xfer1.res.oicr.on.ca')
         
     # check encryption
     CheckEncryptionParser = subparsers.add_parser('check_encryption', help='Check that encryption is done for a given alias', parents = [parent_parser])
@@ -5586,6 +5601,7 @@ if __name__ == '__main__':
     CheckUploadParser.add_argument('-o', '--Object', dest='object', choices=['analyses', 'runs'], help='EGA object to register (runs or analyses', required=True)
     CheckUploadParser.add_argument('-w', '--WorkingDir', dest='workingdir', default='/scratch2/groups/gsi/bis/EGA_Submissions', help='Directory where subdirectories used for submissions are written. Default is /scratch2/groups/gsi/bis/EGA_Submissions')
     CheckUploadParser.add_argument('-at', '--Attributes', dest='attributes', default='AnalysesAttributes', help='DataBase table. Default is AnalysesAttributes')
+    CheckUploadParser.add_argument('-ht', '--Host', dest='host', default='xfer1.res.oicr.on.ca', help='Name of the xfer server. Default is xfer1.res.oicr.on.ca')
     
     # re-upload registered files that cannot be archived       
     ReUploadParser = subparsers.add_parser('reupload', help ='Encrypt and re-upload files that are registered but cannot be archived', parents = [parent_parser])
@@ -5686,11 +5702,11 @@ if __name__ == '__main__':
     elif args.subparser_name == 'reupload':
         reupload_registered_files(args.credential, args.metadatadb, args.subdb, args.analysistable, args.runstable, args.working_dir, args.aliasfile, args.box)
     elif args.subparser_name == 'register':
-        register_ega_objects(args.credential, args.subdb, args.metadatadb, args.workingdir, args.keyring, args.memory, args.diskspace, args.footprint, args.samples_attributes_table, args.analysis_attributes_table, args.projects_table, args.maxuploads, args.maxfootprint, args.remove, args.portal, args.box)
+        register_ega_objects(args.credential, args.subdb, args.metadatadb, args.workingdir, args.keyring, args.memory, args.diskspace, args.footprint, args.samples_attributes_table, args.analysis_attributes_table, args.projects_table, args.maxuploads, args.maxfootprint, args.remove, args.portal, args.box, args.host)
     elif args.subparser_name == 'check_encryption':
         check_encryption(args.credential, args.subdb, args.table, args.box, args.alias, args.object, args.jobnames, args.workingdir)
     elif args.subparser_name == 'check_upload':
-        check_upload(args.object, args.credential, args.subdb, args.table, args.box, args.alias, args.jobnames, args.workingdir, args.attributes)
+        check_upload(args.host, args.object, args.credential, args.subdb, args.table, args.box, args.alias, args.jobnames, args.workingdir, args.attributes)
     elif args.subparser_name == 'collect':
         collect_registered_metadata(args.credential, args.box, args.chunksize, args.URL, args.metadatadb)
     elif args.subparser_name == 'add_info':
