@@ -5146,7 +5146,7 @@ def add_analyses_info(credential_file, metadata_database, submission_database, t
                             file_typeId = 'tab'
                         else:
                             file_typeId = extension.replace('.', '')
-                        assert file_typeId in ['bam', 'bai', 'vcf', 'tab'], 'valid fileTypeId are bam, vcf, bai and tab'
+                        assert file_typeId in ['bam', 'bai', 'vcf', 'tab', 'cram', 'crai'], 'valid fileTypeId are bam, vcf, bai, tab, cram and crai'
                         # add fileTypeId to dict
                         assert 'fileTypeId' not in D[alias]['files'][file_path] 
                         D[alias]['files'][file_path]['fileTypeId'] = file_typeId
