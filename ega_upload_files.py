@@ -8,155 +8,11 @@ Created on Tue Dec  3 12:56:22 2024
 
 # use this script to upload files to EGA inbox
 
-
-
-
 import os
 import argparse
 import subprocess
 import uuid
-import sqlite3
-from datetime import datetime
-
-
-
-
-import json
-import time
-import requests
-import gzip
-
-
-
-
-
-def create_table(database, table):
-    '''
-    (str, str) -> None
-    
-    Creates a table in database
-    
-    Parameters
-    ----------
-    - database (str): Name of the database
-    - table (str): Table name
-    '''
-
-    column_types = ['VARCHAR(572)', 'TEXT', 'TEXT', 'VARCHAR(128)', 'INT', 'INT', 'VARCHAR(572)', 'VARCHAR(128)', 'VARCHAR(128)'],
-    column_names = ['alias', 'directory', 'filepath', 'filename', 'file_size', 'run_time', 'error' 'ega-box', 'status']
-                    
-    # define table format including constraints    
-    table_format = ', '.join(list(map(lambda x: ' '.join(x), list(zip(column_names, column_types)))))
-
-    # connect to database
-    conn = sqlite3.connect(database)
-    cur = conn.cursor()
-    # create table
-    cmd = 'CREATE TABLE {0} ({1})'.format(table, table_format)
-    cur.execute(cmd)
-    conn.commit()
-    conn.close()
-
-
-def initiate_db(database, table = 'ega_uploads'):
-    '''
-    (str) -> None
-    
-    Create tables in database
-    
-    Parameters
-    ----------
-    - database (str): Path to the database file
-    '''
-    
-    # check if table exists
-    conn = sqlite3.connect(database)
-    cur = conn.cursor()
-    cur.execute("SELECT name FROM sqlite_master WHERE type='table';")
-    tables = cur.fetchall()
-    tables = [i[0] for i in tables]    
-    conn.close()
-    
-    if table not in tables:
-        create_table(database, table)
-
-
-
-def connect_to_db(database):
-    '''
-    (str) -> sqlite3.Connection
-    
-    Returns a connection to SqLite database prov_report.db.
-    This database contains information extracted from FPR
-    
-    Parameters
-    ----------
-    - database (str): Path to the sqlite database
-    '''
-    
-    conn = sqlite3.connect(database)
-    conn.row_factory = sqlite3.Row
-    return conn
-
-
-def get_file_size(file):
-    '''
-    (str) -> int
-
-    Returns the file size
-
-    Parameters
-    ----------
-    - file (str): File path
-    '''
-    
-    file_size = int(subprocess.check_output('ls -l {0}'.format(file), shell=True).decode('utf-8').rstrip().split()[4])
-    
-    return file_size
-
-
-
-def insert_data(database, table, data, column_names):
-    '''
-    (str, str, list, list) -> None
-    
-    Inserts data into the database table with column names 
-    
-    Parameters
-    ----------
-    - database (str): Path to the database file
-    - table (str): Table in database
-    - data (list): List of data to be inserted
-    - column_names (list): List of table column names
-    '''
-       
-    # connect to db
-    conn = sqlite3.connect(database)
-    # add data
-    vals = '(' + ','.join(['?'] * len(data[0])) + ')'
-    conn.executemany('INSERT INTO {0} {1} VALUES {2}'.format(table, tuple(column_names), vals), data)
-    conn.commit()
-    conn.close()
-
-
-def get_column_names(database, table):
-    '''
-    (str, str) -> list
-    
-    Returns a list of column headers in the database table
-    
-    Parameters
-    ----------
-    - database (str): Path to the sqlite database
-    - table (str): Name of table in database
-    '''
-
-    conn = connect_to_db(database)
-    data = conn.execute('select * from {0}'.format(table))
-    columns = list(map(lambda x: x[0], data.description))
-    conn.close()
-
-    return columns
+import pymysql
 
 
 
@@ -179,6 +35,191 @@ def extract_credentials(credential_file):
             D[line[0].strip()] = line[1].strip()
     infile.close()        
     return D
+
+
+def connect_to_database(credential_file, database):
+    '''
+    (str, str) -> pymysql.connections.Connection
+    
+    Open a connection to the database by parsing the CredentialFile
+    
+    Parameters
+    ----------
+    - credential_file (str): Path to the file with the database and EGA box credentials
+    - database (str): Name of the database
+    '''
+
+    # get the database credentials
+    credentials = extract_credentials(credential_file)
+    DbHost = credentials['DbHost']
+    DbUser, DbPasswd = credentials['DbUser'], credentials['DbPasswd']
+    
+    try:
+        conn = pymysql.connect(host = DbHost, user = DbUser, password = DbPasswd,
+                               db = database, charset = "utf8", port=3306)
+    except:
+        try:
+            conn = pymysql.connect(host=DbHost, user=DbUser, password=DbPasswd, db=database)
+        except:
+            raise ValueError('cannot connect to {0} database'.format(database))
+    return conn
+
+
+
+def show_tables(credential_file, database):
+    '''
+    (str) -> list
+    
+    Returns a list of tables in the EGA database
+    
+    Parameters
+    ----------
+    - credential_file (str): Path to the file with the database and EGA box credentials
+    '''
+    
+    # connect to EGA database
+    conn = connect_to_database(credential_file, database)
+    # make a list of database tables
+    cur = conn.cursor()
+    cur.execute('SHOW TABLES')
+    tables = [i[0] for i in cur]
+    conn.close()
+    return tables
+
+
+
+def create_table(database, credential_file, table):
+    '''
+    (str, str) -> None
+    
+    Creates a table in database
+    
+    Parameters
+    ----------
+    - database (str): Name of the database
+    - credential_file (str): Path to the file containing database and EGA box passwords
+    - table (str): Table name
+    '''
+
+    column_types = ['VARCHAR(572)', 'TEXT', 'TEXT', 'VARCHAR(128)', 'INT', 'INT', 'VARCHAR(572)', 'VARCHAR(128)', 'VARCHAR(128)'],
+    column_names = ['alias', 'directory', 'filepath', 'filename', 'file_size', 'run_time', 'error' 'ega-box', 'status']
+                    
+    # define table format including constraints    
+    table_format = ', '.join(list(map(lambda x: ' '.join(x), list(zip(column_names, column_types)))))
+
+    # connect to database
+    tables  = show_tables(credential_file, database)
+    if table not in tables:
+        conn = connect_to_database(credential_file, database)
+        cur = conn.cursor()
+        # create table
+        cmd = 'CREATE TABLE {0} ({1})'.format(table, table_format)
+        cur.execute(cmd)
+        conn.commit()
+        conn.close()
+
+
+# def initiate_db(database, table = 'ega_uploads'):
+#     '''
+#     (str) -> None
+    
+#     Create tables in database
+    
+#     Parameters
+#     ----------
+#     - database (str): Path to the database file
+#     '''
+    
+#     # check if table exists
+#     conn = sqlite3.connect(database)
+#     cur = conn.cursor()
+#     cur.execute("SELECT name FROM sqlite_master WHERE type='table';")
+#     tables = cur.fetchall()
+#     tables = [i[0] for i in tables]    
+#     conn.close()
+    
+#     if table not in tables:
+#         create_table(database, table)
+
+
+
+# def connect_to_db(database):
+#     '''
+#     (str) -> sqlite3.Connection
+    
+#     Returns a connection to SqLite database prov_report.db.
+#     This database contains information extracted from FPR
+    
+#     Parameters
+#     ----------
+#     - database (str): Path to the sqlite database
+#     '''
+    
+#     conn = sqlite3.connect(database)
+#     conn.row_factory = sqlite3.Row
+#     return conn
+
+
+def get_file_size(file):
+    '''
+    (str) -> int
+
+    Returns the file size
+
+    Parameters
+    ----------
+    - file (str): File path
+    '''
+    
+    file_size = int(subprocess.check_output('ls -l {0}'.format(file), shell=True).decode('utf-8').rstrip().split()[4])
+    
+    return file_size
+
+
+
+def insert_data(database, credential_file,  table, data, column_names):
+    '''
+    (str, str, str, list, list) -> None
+    
+    Inserts data into the database table with column names 
+    
+    Parameters
+    ----------
+    - database (str): Path to the database file
+    - credential_file (str): Path to the file containing database and EGA box passwords
+    - table (str): Table in database
+    - data (list): List of data to be inserted
+    - column_names (list): List of table column names
+    '''
+       
+    # connect to db
+    conn = connect_to_database(credential_file, database)
+    # add data
+    vals = '(' + ','.join(['?'] * len(data[0])) + ')'
+    conn.executemany('INSERT INTO {0} {1} VALUES {2}'.format(table, tuple(column_names), vals), data)
+    conn.commit()
+    conn.close()
+
+
+def get_column_names(database, credential_file, table):
+    '''
+    (str, str, str) -> list
+    
+    Returns a list of column headers in the database table
+    
+    Parameters
+    ----------
+    - database (str): Path to the sqlite database
+    - credential_file (str): Path to the file containing database and EGA box passwords
+    - table (str): Name of table in database
+    '''
+
+    conn = connect_to_database(credential_file, database)
+    data = conn.execute('select * from {0}'.format(table))
+    columns = list(map(lambda x: x[0], data.description))
+    conn.close()
+
+    return columns
 
 
 def get_files_to_upload(files):
@@ -211,7 +252,7 @@ def get_files_to_upload(files):
 
 
 
-def count_uploading_files(database, table, box):
+def count_uploading_files(database, credential_file, table, box):
     '''
     (str, str, str) -> int
     
@@ -219,12 +260,13 @@ def count_uploading_files(database, table, box):
     
     Parameters
     ----------
-    - database (str):
-    - table (str):
-    - box (str): 
+    - database (str): Name of the database
+    - credential_file (str): Path to the file containing database and EGA box passwords
+    - table (str): Table storing the file information
+    - box (str): EGA submission box
     '''
        
-    conn = connect_to_db(database)
+    conn = connect_to_database(credential_file, database)
     data = conn.execute('SELECT * FROM {0} WHERE box = \"{1}\" AND status = \"uploading\"'.format(table, box))
     data = list(set(data))
     conn.close()
@@ -233,21 +275,22 @@ def count_uploading_files(database, table, box):
 
 
 
-def collect_files(database, table, box, max_upload, uploading_files):
+def collect_files(database, credential_file, table, box, max_upload, uploading_files):
     '''
-    (str, str, str, int) -> list
+    (str, str, str, str, int) -> list
     
     Returns a list of dictionaries of files to upload
     
     Parameters
     ----------
-    - database (str):
+    - database (str): Name of the database
+    - credential_file (str): Path to the file containing database and EGA box passwords
     - table (str): Name of table in database
     - box (str): Submission box
     - max_uploads (int): Maximum number of files to upload at once
     '''
     
-    conn = connect_to_db(database)
+    conn = connect_to_database(credential_file, database)
     data = conn.execute('SELECT * FROM {0} WHERE ega-box=\"{1}\" AND status = \"upload\"'.format(table, box))
     if data:
         m = max_upload - uploading_files
@@ -257,8 +300,6 @@ def collect_files(database, table, box, max_upload, uploading_files):
     conn.close()
 
     return data    
-
-
 
 
 def get_box_footprint(host, box, password):
@@ -282,145 +323,48 @@ def get_box_footprint(host, box, password):
     return sum(L)
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# def add_working_directory(credential_file, database, table, box, working_dir):
-#     '''
-#     (str, str, str, str, str) --> None
-    
-#     Create unique directories in file system for each alias in table and given Box
-#     and record working directory in database table
-
-#     Parameters
-#     ----------
-#     - credential_file (str): Path to the file with the database and EGA box credentials
-#     - database (str): Name of the database
-#     - table (str): Table name in database
-#     - box (str): EGA box
-#     - working_dir (str): Directory where sub-directories used for submissions are written
-#     '''
-    
-#     # check if table exists
-#     tables = show_tables(credential_file, database)
-    
-#     if table in tables:
-#         # connect to db
-#         conn = connect_to_database(credential_file, database)
-#         cur = conn.cursor()
-#         # get the alias with valid status
-#         cur.execute('SELECT {0}.alias FROM {0} WHERE {0}.Status=\"valid\" and {0}.egaBox=\"{1}\"'.format(table, box))
-#         data = cur.fetchall()
-        
-#         if len(data) != 0:
-#             # loop over alias
-#             for i in data:
-#                 alias = i[0]
-#                 # create working directory with random unique identifier
-#                 UID = str(uuid.uuid4())             
-#                 # record identifier in table, create working directory in file system
-#                 cur.execute('UPDATE {0} SET {0}.WorkingDirectory=\"{1}\" WHERE {0}.alias=\"{2}\" AND {0}.egaBox=\"{3}\"'.format(table, UID, alias, box))  
-#                 conn.commit()
-#                 # create working directories
-#                 working_directory = get_working_directory(UID, working_dir)
-#                 os.makedirs(working_directory)
-#         conn.close()
-        
-#         # check that working directory was recorded and created
-#         conn = connect_to_database(credential_file, database)
-#         cur = conn.cursor()
-#         # get the alias and working directory with valid status
-#         cur.execute('SELECT {0}.alias, {0}.WorkingDirectory FROM {0} WHERE {0}.Status=\"valid\" and {0}.egaBox=\"{1}\"'.format(table, box))
-#         data = cur.fetchall()
-        
-#         if len(data) != 0:
-#             for i in data:
-#                 error = []
-#                 alias = i[0]
-#                 working_directory = get_working_directory(i[1], working_dir)
-#                 if i[1] in ['', 'NULL', '(null)']:
-#                     error.append('Working directory does not have a valid Id')
-#                 if os.path.isdir(working_directory) == False:
-#                     error.append('Working directory not generated')
-#                 # check if error message
-#                 if len(error) != 0:
-#                     # error is found, record error message, keep status valid --> valid
-#                     cur.execute('UPDATE {0} SET {0}.errorMessages=\"{1}\" WHERE {0}.alias=\"{2}\" AND {0}.egaBox=\"{3}\"'.format(table, ';'.join(error), alias, box))  
-#                     conn.commit()
-#                 else:
-#                     # no error, update Status valid --> start
-#                     cur.execute('UPDATE {0} SET {0}.Status=\"encrypt\", {0}.errorMessages=\"None\" WHERE {0}.alias=\"{1}\" AND {0}.egaBox=\"{2}\"'.format(table, alias, box))  
-#                     conn.commit()
-#         conn.close()            
-
-
-
-def update_message_status(database, table, new_status, alias, box, file, column):
+def update_message_status(database, credential_file, table, new_status, alias, box, file, column):
     '''
-    (str, str, str, str, str, str, str) -> None
+    (str, str, str, str, str, str, str, str) -> None
     
     Update the uploading status or the error message of the file with associated alias
     and box to the new status in the database table
     
     Parameters
     ----------
-    
-    
-    
+    - database (str): Name of the database
+    - credential_file (str): Path to the file containing database and EGA box passwords
+    - table (str): Name of table in database storing file information
+    - new_status (str) Status of the file
+    - alias (str): Unique identifier associated with the file
+    - box (str): EGA submission box
+    - file (str): Path to the file to be uploaded
+    - column (str): Name of the column to update
     '''
 
-    conn = connect_to_database(database)
+    conn = connect_to_database(credential_file, database)
     conn.execute('UPDATE {0} SET {0}.{1}=\"{2}\" WHERE {0}.alias=\"{3}\" AND {0}.ega-box=\"{4}\" AND {0}.filepath = \"{5}\";'.format(table, column, new_status, alias, box, file))
     conn.commit()
     conn.close()
 
-
-
-    
-
-
+   
 def write_qsubs(alias, file, box, password, workingdir, mem, host, database, table):
     '''
+    (str, str, str, str, str, int, str, str, str) -> None
     
-    
+    Write and launch qsubs to upload the files
+        
     Parameters
     ----------
     - alias (str): Alias associated with the file
     - file (str): Path of the file to upload
-    
-    
-    
-    
-    
-    - credential_file (str): File with EGA boxes and database credentials
-    - database (str): Database storing information required for registration of EGA objects
-    - table (str): Table in database storing information about the files to encrypt
     - box (str): EGA submission box (ega-box-xxx)
-    - alias (str): Unique identifier of the files in Table
-    - ega_object (str): Registered object at the EGA. Accepted values:
-                        studies, runs, samples, experiments, datasets, analyses, policies, dacs
-    - file_paths (list): List of file paths for the given alias
-    - file_names (list): List of file names used for registration of files under alias 
-                         (ie. file names may be different than the file paths basenames)
-    - key_ring (str): Path to the key used for encryption
-    - outdir (str): Directory in which the encrypted files are written
+    - password (str): Password of the ega submission box
+    - working_dir (str): Path to the workfing direcvtory containing the qsubs 
     - mem (int): Job memory requirement
-    
-    
-    
+    - host (str): xfer host
+    - database (str): Name of the submission database
+    - table (str): Name of the table storing the file information
     '''
     
     if os.path.isdir(workingdir) == False:
@@ -490,8 +434,13 @@ def write_qsubs(alias, file, box, password, workingdir, mem, host, database, tab
 
 def get_most_recent_log(logdir):
     '''
-    
-    
+    (str) -> tuple
+
+    Returns the most recent error and out logs in logdir if they exist
+
+    Parameters
+    ----------
+    - logdir (str): Path to the log directory     
     '''
     
     logfiles = [os.path.join(logdir, i) for i in os.lidtdir() if 'upload' in i]
@@ -515,13 +464,16 @@ def get_most_recent_log(logdir):
         return '',''
     
 
-
-
-
 def check_logfiles(outlog, errorlog):
     '''
+    (str, str) -> str
     
+    Returns the content of the error and out logs
     
+    Parameters
+    ----------
+    - outlog (str): Path to the out log
+    - errorlog (str): Path to the error log
     '''
     
     infile = open(outlog)
@@ -533,7 +485,7 @@ def check_logfiles(outlog, errorlog):
     infile.close()
     
     if content_err or content_out:
-        content = ';',join([content_out, content_err])
+        content = ';'.join([content_out, content_err])
     else:
         content = ''
         
@@ -563,7 +515,6 @@ def get_job_exit_status(jobnum):
         exit_status = '1'
         error_message = 'cannot check job'        
     else:
-        d = {}
         for i in content:
             if 'exit_status' in i:
                 exit_status = i.split()[-1]
@@ -575,13 +526,23 @@ def get_job_exit_status(jobnum):
 
 
 
-def get_run_time(database, table, box, file, alias):
+def get_run_time(database, credential_file, table, box, file, alias):
+    '''
+    database, credential_file, table, box, file, alias
+    
+    Returns the run time allocated to the uploading job 
+        
+    Parameters
+    ----------
+    - database (str): Name of the database
+    - credential_file (str): Path to the file containing database and EGA box passwords
+    - table (str): Name of table in database storing file information
+    - box (str): EGA submission box
+    - file (str): File to upload
+    - alias (str): Alias associated with the file
     '''
     
-    
-    '''
-    
-    conn = connect_to_db(database)
+    conn = connect_to_database(credential_file, database)
     data = conn.execute('SELECT * FROM {0} WHERE ega-box=\"{1}\" AND filepath = \"{2}\" AND alias = \"{3}\"'.format(table, box, file, alias))
     assert len(data) == 1
     conn.close()
@@ -592,8 +553,98 @@ def get_run_time(database, table, box, file, alias):
 
 
 
+def add_file_info(args):
+    '''
+    (str, str, str, str) -> None
+
+    Add file information in the database table
+
+    Parameters
+    ----------
+    - files_to_upload (str): Path to the list of files to upload
+    - database (str): Path to the sqlite database
+    - table (str): Name of table in database storing file information
+    - box (str): ega-box of interest
+    - workingdir (str): Working directory where subdirctories and qsubs are written
+    - credential_file (str): Path to the file containing the database and EGA passwords
+    '''
+
+    # get the files to upload
+    files = get_files_to_upload(args.files_to_upload)
+
+    # make a list of data to insert in the database
+    newdata = []
+       
+    # get the column names
+    column_names = get_column_names(args.database, args.credential_file, args.table)
+       
+    for alias in files:
+        for file in files[alias]:
+            # get the file size
+            assert os.path.isfile(file)
+            file_size = get_file_size(file)
+            filename = os.path.basename(file)
+            filedir = os.path.join(args.workingdir, str(uuid.uuid4()))
+            status = 'upload'
+            newdata.append([alias, filedir, file, filename, file_size, args.box, status])        
+        
+    # add data
+    insert_data(args.database, args.credential_file, args.table, newdata, column_names)
+
+
+                                 
+
+def upload_files(args):
+    '''
     
     
+    
+    args.credential_file
+    args.box
+    args.database
+    
+    args.table
+    args.max_upload
+    
+    args.host
+    
+    args.quota
+    
+    
+    
+    args.mem
+    
+    
+    '''
+    
+    # parse credentials and get password
+    credentials = extract_credentials(args.credential_file)
+    password = credentials[args.box]
+    
+    # get the files to upload
+    # count the number of uploading files
+    uploading_files = count_uploading_files(args.database, args.credential_file, args.table, args.box)
+    files = collect_files(args.database, args.credential_file, args.table, args.box, args.max_upload, uploading_files)
+    
+    # check if files are ready for upload
+    if files:
+        # get the footprint on the box
+        footprint = get_box_footprint(args.host, args.box, password)
+        # convert to terabytes
+        footprint = footprint / 1e12
+        # get the size of the data to upload
+        upload_size = sum([i['file_size'] for i in files]) / 1e12
+    
+        # check if uploading is below the allowed quota
+        if footprint + upload_size < args.quota:
+            # can upload. write qsubs. launch jobs
+            for i in files:
+                alias = i['alias']
+                workingdir = i['workingdir']
+                filepath = i['filepath']
+                write_qsubs(alias, filepath, args.box, password, workingdir, args.mem, args.host, args.database, args.table)
+
+
 def check_upload_files(args):
     
     
@@ -607,7 +658,7 @@ def check_upload_files(args):
     uploaded = True
     
     # get the log directory
-    logdir = os.path.join(workingdir, 'qsubs/log')
+    logdir = os.path.join(args.workingdir, 'qsubs/log')
     # get the most recent logfiles
     errorlog, outlog = get_most_recent_log(logdir)
 
@@ -632,99 +683,18 @@ def check_upload_files(args):
     
     if uploaded:
         # update status uploading --> uploaded
-        update_message_status(database, table, 'uploaded', alias, box, file, 'status')
+        update_message_status(args.database, args.table, 'uploaded', args.alias, args.box, args.file, 'status')
         # update error message
-        update_message_status(database, table, '', alias, box, file, 'error')
+        update_message_status(args.database, args.table, '', args.alias, args.box, args.file, 'error')
     else:
         # update status uploading -- > upload
-        update_message_status(database, table, 'upload', alias, box, file, 'status')
+        update_message_status(args.database, args.table, 'upload', args.alias, args.box, args.file, 'status')
         # update error message
-        update_message_status(database, table, error_message, alias, box, file, 'error')
+        update_message_status(args.database, args.table, error_message, args.alias, args.box, args.file, 'error')
         # increase running time in hours
-        runtime = get_run_time(database, table, box, file, alias)
+        runtime = get_run_time(args.database, args.table, args.box, args.file, args.alias)
         new_runtime = runtime + 5
-        update_message_status(database, table, new_runtime, alias, box, file, 'run_time')
-
-
-
-def add_file_info(args):
-    '''
-    (str, str, str, str) -> None
-
-    Add file information in the database table
-
-    Parameters
-    ----------
-    - files_to_upload (str): Path to the list of files to upload
-    - database (str): Path to the sqlite database
-    - table (str): Name of table in database
-    - box (str): ega-box of interest
-    - workingdir (str): Working directory where subdirctories and qsubs are written
-    '''
-
-    # create database if it doesn't exist
-    if os.path.isfile(args.database) == False:
-        initiate_db(args.database, 'ega_uploads')
-        
-    # get the files to upload
-    files = get_files_to_upload(args.files_to_upload)
-
-    # make a list of data to insert in the database
-    newdata = []
-       
-    # get the column names
-    column_names = get_column_names(args.database, 'ega_uploads')
-       
-    for alias in files:
-        for file in files[alias]:
-            # get the file size
-            assert os.path.isfile(file)
-            file_size = get_file_size(file)
-            filename = os.path.basename(file)
-            filedir = os.path.join(args.workingdir, str(uuid.uuid4()))
-            status = 'upload'
-            newdata.append([alias, filedir, file, filename, file_size, args.box, status])        
-        
-    # add data
-    insert_data(args.database, 'ega_uploads', newdata, column_names)
-
-
-                                 
-
-def upload_files(args):
-    '''
-    
-    
-    
-    '''
-    
-    # parse credentials and get password
-    credentials = extract_credentials(args.credential)
-    password = credentials[args.box]
-    
-    # get the files to upload
-    # count the number of uploading files
-    uploading_files = count_uploading_files(args.database, 'ega_uploads', args.box)
-    files = collect_files(args.database, 'ega_uploads', args.box, args.max_upload, uploading_files)
-    
-    # check if files are ready for upload
-    if files:
-        # get the footprint on the box
-        footprint = get_box_footprint(args.host, args.box, password)
-        # convert to terabytes
-        footprint = footprint / 1e12
-        # get the size of the data to upload
-        upload_size = sum([i['file_size'] for i in files]) / 1e12
-    
-        # check if uploading is below the allowed quota
-        if footprint + upload_size < args.quota:
-            # can upload. write qsubs. launch jobs
-            for i in files:
-                alias = i['alias']
-                workingdir = i['workingdir']
-                filepath = i['filepath']
-                write_qsubs(alias, filepath, args.box, password, workingdir, args.mem, args.host, args.database, 'ega_uploads')
-
+        update_message_status(args.database, args.table, new_runtime, args.alias, args.box, args.file, 'run_time')
 
 
 
@@ -741,25 +711,42 @@ if __name__ == '__main__':
     # add files to database 
     file_parser = subparsers.add_parser('add_files', help="Add files info to the database")
     file_parser.add_argument('-f', '--files', dest='files', help='Path to the file containing the list of files to upload. The input file is a 2-column tab separated table with alias and file path', required=True)
-    file_parser.add_argument('-d', '--database', dest='database',
-                             default = '/.mounts/labs/gsiprojects/gsi/Data_Transfer/Release/PROJECTS/EGA/EGA_uploads.db',
-                             help='Path to the sqlite database storing file information. Default is /.mounts/labs/gsiprojects/gsi/Data_Transfer/Release/PROJECTS/EGA/EGA_uploads.db')
+    file_parser.add_argument('-d', '--database', dest='database', default = 'EGASUB', help='Name of the EGA submission database. Default is EGASUB')
     file_parser.add_argument('-w', '--workingdir', dest='workingdir', 
                              default = '/scratch2/groups/gsi/bis/EGA_Submissions',
                              help='Path to the working directory where subdirectories qnd qsubs are written. Default is /scratch2/groups/gsi/bis/EGA_Submissions')
-    file_parser.add_argument('-b', '--Box', dest='box', help='EGA submission box', required=True)
+    file_parser.add_argument('-b', '--box', dest='box', help='EGA submission box', required=True)
+    file_parser.add_argument('-c', '--credential_file', dest='credential_file', help='Path to the file containing the passwords', required=True)
+    file_parser.add_argument('-t', '--table', dest='table', default = 'ega_uploads', help='Table storing the file information in the database. Default is ega_uploads')
     file_parser.set_defaults(func=add_file_info)
 
-    # create top-level parser
-    upload_parser = argparse.ArgumentParser(prog = 'ega_upload_files.py', description='A script to generate qsubs to upload files to the EGA inbox', add_help=False)
-    upload_parser.add_argument('-c', '--Credentials', dest='credential', help='file with database credentials', required=True)
-    upload_parser.add_argument('-f', '--Files', dest='files', help='Path to the file containing the list of files to upload. The input file is a 2-column tab separated table with alias and file path', required=True)
-    upload_parser.add_argument('-h', '--Host', dest='host', default = 'xfer.hpc.oicr.on.ca', help='xfer host used to upload the files. Default is xfer.hpc.oicr.on.ca')
-    upload_parser.add_argument('-w', '--WorkingDir', dest='workingdir', help='Directory used for the submission and containing the qsubs and log directory', required=True)
-    upload_parser.add_argument('-m', '--Mem', dest='mem', default='10', help='Memory allocated to uploading files. Default is 10G')
-    upload_parser.add_argument('-b', '--Box', dest='box', help='EGA submission box', required=True)
+    # upload parser
+    upload_parser = subparsers.add_parser('upload_files', help="Launch jobs for uploading files")
+    upload_parser.add_argument('-c', '--credential_file', dest='credential_file', help='File with database credentials', required=True)
+    upload_parser.add_argument('-h', '--host', dest='host', default = 'xfer.hpc.oicr.on.ca', help='xfer host used to upload the files. Default is xfer.hpc.oicr.on.ca')
+    upload_parser.add_argument('-m', '--mem', dest='mem', default='10', help='Memory allocated to uploading files. Default is 10G')
+    upload_parser.add_argument('-b', '--box', dest='box', help='EGA submission box', required=True)
+    upload_parser.add_argument('-t', '--table', dest='table', default = 'ega_uploads', help='Table storing the file information in the database. Default is ega_uploads')
+    upload_parser.add_argument('-db', '--database', dest='database', default = 'EGASUB', help='Name of the database. Default is EGASUB')
+    upload_parser.add_argument('-mx', '--max', dest='max_upload', default = 4, help='Maximum number of co-occuring uploads. Default is 4')
+    upload_parser.add_argument('-q', '--quota', dest='quota', default = 8, help='Maximum footprint allowd in the submission box. Default is 8T')
     upload_parser.set_defaults(func=upload_files)
 
+
+    # create top-level parser
+    
+    
+    check_parser = subparsers.add_parser('check_upload', help="Check upload succeess")
+    check_parser.add_argument('-w', '--workingdir', dest='workingdir', help='Directory used for the submission and containing the qsubs and log directory', required=True)
+    check_parser.add_argument('-d', '--database', dest='database',
+                             default = '/.mounts/labs/gsiprojects/gsi/Data_Transfer/Release/PROJECTS/EGA/EGA_uploads.db',
+                             help='Path to the sqlite database storing file information. Default is /.mounts/labs/gsiprojects/gsi/Data_Transfer/Release/PROJECTS/EGA/EGA_uploads.db')
+    check_parser.add_argument('-t', '--table', dest='table', default = 'ega_uploads', help='Table storing the files for upload')
+    check_parser.add_argument('-b', '--box', dest='box', help='EGA submission box', required=True)
+    check_parser.add_argument('-a', '--alias', dest='alias', help='Alias of the file to upload', required=True)
+    check_parser.add_argument('-f', '--file', dest='file', help='Path to the file to upload', required=True)
+    check_parser.add_argument('-c', '--Credentials', dest='credential', help='file with database credentials', required=True)
+    check_parser.set_defaults(func=check_upload_files)
 
     # get arguments from the command line
     args = upload_parser.parse_args()
@@ -770,4 +757,3 @@ if __name__ == '__main__':
 
 
 
-    
