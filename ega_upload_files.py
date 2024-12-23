@@ -348,7 +348,7 @@ def update_message_status(database, credential_file, table, new_status, alias, b
     conn.close()
 
    
-def write_qsubs(alias, file, box, password, workingdir, mem, host, database, table):
+def write_qsubs(alias, file, box, password, workingdir, mem, host, database, credential_file, table):
     '''
     (str, str, str, str, str, int, str, str, str) -> None
     
@@ -396,16 +396,16 @@ def write_qsubs(alias, file, box, password, workingdir, mem, host, database, tab
     job_names.append(jobname)
     
     # update status to uploading
-    update_message_status(database, table, 'uploading', alias, box, file, 'status')
+    update_message_status(database, credential_file, table, 'uploading', alias, box, file, 'status')
     # update error message
-    update_message_status(database, table, 'NULL', alias, box, file, 'error')         
+    update_message_status(database, credential_file, table, 'NULL', alias, box, file, 'error')         
     
     # launch check upload job
     
     
     myscript = '/u/rjovelin/SOFT/anaconda3/bin/python3.6 /scratch2/groups/gsi/bis/rjovelin/EGA_submissions_portal/ega_upload_files.py'
 
-    checkcmd = 'sleep 60; {0} check_upload -w {1} -b {2} -f {3} -d {4} -t {5}'.format(myscript, workingdir, box, file, database, table)  
+    checkcmd = 'sleep 60; {0} check_upload -w {1} -b {2} -f {3} -db {4} -t {5} -a {6} -c {7}'.format(myscript, workingdir, box, file, database, table, alias, credential_file)  
      
     bashscript2 = os.path.join(qsubdir, alias + '.' + filename + '.check_upload.sh')
     with open(bashscript2, 'w') as newfile:
@@ -426,9 +426,9 @@ def write_qsubs(alias, file, box, password, workingdir, mem, host, database, tab
     if not (len(set(job_exits)) == 1 and list(set(job_exits))[0] == 0):
         # record error message, reset status same uploading --> upload
         # update status uploading -- > upload
-        update_message_status(database, table, 'upload', alias, box, file, 'status')
+        update_message_status(database, credential_file, table, 'upload', alias, box, file, 'status')
         # update error message
-        update_message_status(database, table, 'Could not launch upload jobs', alias, box, file, 'error')
+        update_message_status(database, credential_file, table, 'Could not launch upload jobs', alias, box, file, 'error')
  
 
 
@@ -596,25 +596,20 @@ def add_file_info(args):
 
 def upload_files(args):
     '''
+    (str, str, int, str, str, str, int, int) -> None
+      
+    Upload files to the submission box 
     
-    
-    
-    args.credential_file
-    args.box
-    args.database
-    
-    args.table
-    args.max_upload
-    
-    args.host
-    
-    args.quota
-    
-    
-    
-    args.mem
-    
-    
+    Parameters
+    ----------
+    - credential_file (str): File with database credentials
+    - host (str): xfer host used to upload the files
+    - mem (int): Memory allocated to uploading files
+    - box (str): EGA submission box
+    - table (str): Table storing the file information in the database
+    - database (str): Name of the database
+    - max_upload (int): Maximum number of co-occuring uploads
+    - quota (int): Maximum footprint allowed in the submission box
     '''
     
     # parse credentials and get password
@@ -642,16 +637,24 @@ def upload_files(args):
                 alias = i['alias']
                 workingdir = i['workingdir']
                 filepath = i['filepath']
-                write_qsubs(alias, filepath, args.box, password, workingdir, args.mem, args.host, args.database, args.table)
+                write_qsubs(alias, filepath, args.box, password, workingdir, args.mem, args.host, args.database, args.credential_file, args.table)
 
 
 def check_upload_files(args):
-    
-    
     '''
+    (str, str, str, str, str, str, str) -> None
     
-    (workingdir, box, file, database, table)
-    
+    Check that file was successfully uploaded
+       
+    Parameters
+    ----------
+    - credential_file (str): File with database credentials
+    - box (str): EGA submission box
+    - database (str): Name of the database
+    - table (str): Table storing the file information in the database
+    - alias (str): Unique identifier associated with file
+    - file (str): Pato the file to upload
+    - workingdir (str): Path to the working directory containing logs and qsubs
     '''
     
     # set up boolean to be updated if uploading is not complete
@@ -683,18 +686,18 @@ def check_upload_files(args):
     
     if uploaded:
         # update status uploading --> uploaded
-        update_message_status(args.database, args.table, 'uploaded', args.alias, args.box, args.file, 'status')
+        update_message_status(args.database, args.credential_file, args.table, 'uploaded', args.alias, args.box, args.file, 'status')
         # update error message
-        update_message_status(args.database, args.table, '', args.alias, args.box, args.file, 'error')
+        update_message_status(args.database, args.credential_file, args.table, '', args.alias, args.box, args.file, 'error')
     else:
         # update status uploading -- > upload
-        update_message_status(args.database, args.table, 'upload', args.alias, args.box, args.file, 'status')
+        update_message_status(args.database, args.credential_file, args.table, 'upload', args.alias, args.box, args.file, 'status')
         # update error message
-        update_message_status(args.database, args.table, error_message, args.alias, args.box, args.file, 'error')
+        update_message_status(args.database, args.credential_file, args.table, error_message, args.alias, args.box, args.file, 'error')
         # increase running time in hours
-        runtime = get_run_time(args.database, args.table, args.box, args.file, args.alias)
+        runtime = get_run_time(args.database, args.credential_file, args.table, args.box, args.file, args.alias)
         new_runtime = runtime + 5
-        update_message_status(args.database, args.table, new_runtime, args.alias, args.box, args.file, 'run_time')
+        update_message_status(args.database, args.credential_file, args.table, new_runtime, args.alias, args.box, args.file, 'run_time')
 
 
 
@@ -733,19 +736,15 @@ if __name__ == '__main__':
     upload_parser.set_defaults(func=upload_files)
 
 
-    # create top-level parser
-    
-    
+    # check upload parser
     check_parser = subparsers.add_parser('check_upload', help="Check upload succeess")
     check_parser.add_argument('-w', '--workingdir', dest='workingdir', help='Directory used for the submission and containing the qsubs and log directory', required=True)
-    check_parser.add_argument('-d', '--database', dest='database',
-                             default = '/.mounts/labs/gsiprojects/gsi/Data_Transfer/Release/PROJECTS/EGA/EGA_uploads.db',
-                             help='Path to the sqlite database storing file information. Default is /.mounts/labs/gsiprojects/gsi/Data_Transfer/Release/PROJECTS/EGA/EGA_uploads.db')
+    check_parser.add_argument('-db', '--database', dest='database', default = 'EGASUB', help='Name of the EGA submission database. Default is EGASUB')
     check_parser.add_argument('-t', '--table', dest='table', default = 'ega_uploads', help='Table storing the files for upload')
     check_parser.add_argument('-b', '--box', dest='box', help='EGA submission box', required=True)
+    check_parser.add_argument('-c', '--credential_file', dest='credential_file', help='file with database credentials', required=True)
     check_parser.add_argument('-a', '--alias', dest='alias', help='Alias of the file to upload', required=True)
     check_parser.add_argument('-f', '--file', dest='file', help='Path to the file to upload', required=True)
-    check_parser.add_argument('-c', '--Credentials', dest='credential', help='file with database credentials', required=True)
     check_parser.set_defaults(func=check_upload_files)
 
     # get arguments from the command line
