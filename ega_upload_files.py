@@ -101,8 +101,8 @@ def create_table(database, credential_file, table):
     - table (str): Table name
     '''
 
-    column_types = ['VARCHAR(572)', 'TEXT', 'TEXT', 'VARCHAR(128)', 'INT', 'INT', 'VARCHAR(572)', 'VARCHAR(128)', 'VARCHAR(128)'],
-    column_names = ['alias', 'directory', 'filepath', 'filename', 'file_size', 'run_time', 'error' 'ega-box', 'status']
+    column_types = ['VARCHAR(572)', 'TEXT', 'TEXT', 'VARCHAR(128)', 'INT', 'INT', 'VARCHAR(572)', 'VARCHAR(128)', 'VARCHAR(128)']
+    column_names = ['alias', 'directory', 'filepath', 'filename', 'file_size', 'run_time', 'error', 'ega_box', 'status']
                     
     # define table format including constraints    
     table_format = ', '.join(list(map(lambda x: ' '.join(x), list(zip(column_names, column_types)))))
@@ -194,9 +194,10 @@ def insert_data(database, credential_file,  table, data, column_names):
        
     # connect to db
     conn = connect_to_database(credential_file, database)
+    cur = conn.cursor()
     # add data
     vals = '(' + ','.join(['?'] * len(data[0])) + ')'
-    conn.executemany('INSERT INTO {0} {1} VALUES {2}'.format(table, tuple(column_names), vals), data)
+    cur.executemany('INSERT INTO {0} {1} VALUES {2}'.format(table, tuple(column_names), vals), data)
     conn.commit()
     conn.close()
 
@@ -215,8 +216,9 @@ def get_column_names(database, credential_file, table):
     '''
 
     conn = connect_to_database(credential_file, database)
-    data = conn.execute('select * from {0}'.format(table))
-    columns = list(map(lambda x: x[0], data.description))
+    cur = conn.cursor()
+    cur.execute('select * from {0}'.format(table))
+    columns = list(map(lambda x: x[0], cur.description))
     conn.close()
 
     return columns
@@ -291,7 +293,7 @@ def collect_files(database, credential_file, table, box, max_upload, uploading_f
     '''
     
     conn = connect_to_database(credential_file, database)
-    data = conn.execute('SELECT * FROM {0} WHERE ega-box=\"{1}\" AND status = \"upload\"'.format(table, box))
+    data = conn.execute('SELECT * FROM {0} WHERE ega_box=\"{1}\" AND status = \"upload\"'.format(table, box))
     if data:
         m = max_upload - uploading_files
         if m < 0:
@@ -343,14 +345,14 @@ def update_message_status(database, credential_file, table, new_status, alias, b
     '''
 
     conn = connect_to_database(credential_file, database)
-    conn.execute('UPDATE {0} SET {0}.{1}=\"{2}\" WHERE {0}.alias=\"{3}\" AND {0}.ega-box=\"{4}\" AND {0}.filepath = \"{5}\";'.format(table, column, new_status, alias, box, file))
+    conn.execute('UPDATE {0} SET {0}.{1}=\"{2}\" WHERE {0}.alias=\"{3}\" AND {0}.ega_box=\"{4}\" AND {0}.filepath = \"{5}\";'.format(table, column, new_status, alias, box, file))
     conn.commit()
     conn.close()
 
    
-def write_qsubs(alias, file, box, password, workingdir, mem, host, database, credential_file, table):
+def write_qsubs(alias, file, box, password, workingdir, mem, run_time, host, database, credential_file, table):
     '''
-    (str, str, str, str, str, int, str, str, str) -> None
+    (str, str, str, str, str, int, int, str, str, str) -> None
     
     Write and launch qsubs to upload the files
         
@@ -362,6 +364,7 @@ def write_qsubs(alias, file, box, password, workingdir, mem, host, database, cre
     - password (str): Password of the ega submission box
     - working_dir (str): Path to the workfing direcvtory containing the qsubs 
     - mem (int): Job memory requirement
+    - run_time (int): Job run time requirement
     - host (str): xfer host
     - database (str): Name of the submission database
     - table (str): Name of the table storing the file information
@@ -378,7 +381,7 @@ def write_qsubs(alias, file, box, password, workingdir, mem, host, database, cre
     job_exits, job_names = [], []
     
     uploadcmd = "ssh {0} \"lftp -u {1},{2} -e \\\"cd to-encrypt;mput {3};bye;\\\" sftp://inbox.ega-archive.org\""
-    qsubcmd = "qsub -b y -P gsi -l h_vmem={0}g -N {1} -e {2} -o {2} \"bash {3}\""
+    qsubcmd = "qsub -b y -P gsi -l h_vmem={0}g,h_rt={1}:0:0 -N {2} -e {3} -o {3} \"bash {4}\""
     
     # write bash script
     filename = os.path.basename(file)
@@ -387,13 +390,15 @@ def write_qsubs(alias, file, box, password, workingdir, mem, host, database, cre
         newfile.write(uploadcmd.format(host, box, password, file))
     qsubscript = os.path.join(qsubdir, alias + '.' + filename + '.upload.qsub')
     jobname = alias + '.upload.' + filename
-    myqsubcmd = qsubcmd.format(mem, jobname, logdir, bashscript)
+    myqsubcmd = qsubcmd.format(mem, run_time, jobname, logdir, bashscript)
     with open(qsubscript, 'w') as newfile:
         newfile.write(myqsubcmd)
+    
+    
     # launch job and collect job exit status and job name
-    job = subprocess.call(myqsubcmd, shell=True)
-    job_exits.append(job)
-    job_names.append(jobname)
+    #job = subprocess.call(myqsubcmd, shell=True)
+    #job_exits.append(job)
+    #job_names.append(jobname)
     
     # update status to uploading
     update_message_status(database, credential_file, table, 'uploading', alias, box, file, 'status')
@@ -401,10 +406,7 @@ def write_qsubs(alias, file, box, password, workingdir, mem, host, database, cre
     update_message_status(database, credential_file, table, 'NULL', alias, box, file, 'error')         
     
     # launch check upload job
-    
-    
     myscript = '/u/rjovelin/SOFT/anaconda3/bin/python3.6 /scratch2/groups/gsi/bis/rjovelin/EGA_submissions_portal/ega_upload_files.py'
-
     checkcmd = 'sleep 60; {0} check_upload -w {1} -b {2} -f {3} -db {4} -t {5} -a {6} -c {7}'.format(myscript, workingdir, box, file, database, table, alias, credential_file)  
      
     bashscript2 = os.path.join(qsubdir, alias + '.' + filename + '.check_upload.sh')
@@ -414,13 +416,14 @@ def write_qsubs(alias, file, box, password, workingdir, mem, host, database, cre
     jobname2 = alias + '.checkupload.' + filename 
     # launch job when previous job is done
     
-    qsubcmd2 = "qsub -b y -P gsi -hold_jid {0} -l h_vmem={1}g -N {2} -e {3} -o {3} \"bash {4}\"".format(job_names[-1], mem, jobname2, logdir, bashscript2)
+    qsubcmd2 = "qsub -b y -P gsi -hold_jid {0} -l h_vmem={1}g -N {2} -e {3} -o {3} \"bash {4}\"".format(jobname, mem, jobname2, logdir, bashscript2)
     qsubscript2 = os.path.join(qsubdir, alias + '.' + filename + '.check_upload.qsub')
     with open(qsubscript2, 'w') as newfile:
         newfile.write(qsubcmd2)
-    job = subprocess.call(qsubcmd2, shell=True)
+    
+    #job = subprocess.call(qsubcmd2, shell=True)
     # store the exit code (but not the job name)
-    job_exits.append(job)          
+    #job_exits.append(job)          
     
     # check if upload launched properly
     if not (len(set(job_exits)) == 1 and list(set(job_exits))[0] == 0):
@@ -543,7 +546,7 @@ def get_run_time(database, credential_file, table, box, file, alias):
     '''
     
     conn = connect_to_database(credential_file, database)
-    data = conn.execute('SELECT * FROM {0} WHERE ega-box=\"{1}\" AND filepath = \"{2}\" AND alias = \"{3}\"'.format(table, box, file, alias))
+    data = conn.execute('SELECT * FROM {0} WHERE ega_box=\"{1}\" AND filepath = \"{2}\" AND alias = \"{3}\"'.format(table, box, file, alias))
     assert len(data) == 1
     conn.close()
     
@@ -568,6 +571,9 @@ def add_file_info(args):
     - workingdir (str): Working directory where subdirctories and qsubs are written
     - credential_file (str): Path to the file containing the database and EGA passwords
     '''
+
+    # create table if it doesn't exist
+    create_table(args.database, args.credential_file, args.table)
 
     # get the files to upload
     files = get_files_to_upload(args.files_to_upload)
@@ -637,7 +643,8 @@ def upload_files(args):
                 alias = i['alias']
                 workingdir = i['workingdir']
                 filepath = i['filepath']
-                write_qsubs(alias, filepath, args.box, password, workingdir, args.mem, args.host, args.database, args.credential_file, args.table)
+                run_time = i['run_time']
+                write_qsubs(alias, filepath, args.box, password, workingdir, args.mem, run_time, args.host, args.database, args.credential_file, args.table)
 
 
 def check_upload_files(args):
@@ -713,7 +720,7 @@ if __name__ == '__main__':
     
     # add files to database 
     file_parser = subparsers.add_parser('add_files', help="Add files info to the database")
-    file_parser.add_argument('-f', '--files', dest='files', help='Path to the file containing the list of files to upload. The input file is a 2-column tab separated table with alias and file path', required=True)
+    file_parser.add_argument('-f', '--files', dest='files_to_upload', help='Path to the file containing the list of files to upload. The input file is a 2-column tab separated table with alias and file path', required=True)
     file_parser.add_argument('-d', '--database', dest='database', default = 'EGASUB', help='Name of the EGA submission database. Default is EGASUB')
     file_parser.add_argument('-w', '--workingdir', dest='workingdir', 
                              default = '/scratch2/groups/gsi/bis/EGA_Submissions',
@@ -726,7 +733,7 @@ if __name__ == '__main__':
     # upload parser
     upload_parser = subparsers.add_parser('upload_files', help="Launch jobs for uploading files")
     upload_parser.add_argument('-c', '--credential_file', dest='credential_file', help='File with database credentials', required=True)
-    upload_parser.add_argument('-h', '--host', dest='host', default = 'xfer.hpc.oicr.on.ca', help='xfer host used to upload the files. Default is xfer.hpc.oicr.on.ca')
+    upload_parser.add_argument('-hs', '--host', dest='host', default = 'xfer.hpc.oicr.on.ca', help='xfer host used to upload the files. Default is xfer.hpc.oicr.on.ca')
     upload_parser.add_argument('-m', '--mem', dest='mem', default='10', help='Memory allocated to uploading files. Default is 10G')
     upload_parser.add_argument('-b', '--box', dest='box', help='EGA submission box', required=True)
     upload_parser.add_argument('-t', '--table', dest='table', default = 'ega_uploads', help='Table storing the file information in the database. Default is ega_uploads')
@@ -748,7 +755,7 @@ if __name__ == '__main__':
     check_parser.set_defaults(func=check_upload_files)
 
     # get arguments from the command line
-    args = upload_parser.parse_args()
+    args = parser.parse_args()
     # pass the args to the default function
     args.func(args)
     
