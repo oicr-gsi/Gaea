@@ -101,7 +101,7 @@ def create_table(database, credential_file, table):
     - table (str): Table name
     '''
 
-    column_types = ['VARCHAR(572)', 'TEXT', 'TEXT', 'VARCHAR(128)', 'INT', 'INT', 'VARCHAR(572)', 'VARCHAR(128)', 'VARCHAR(128)']
+    column_types = ['VARCHAR(572)', 'TEXT', 'TEXT', 'VARCHAR(128)', 'VARCHAR(572)', 'VARCHAR(128)', 'VARCHAR(572)', 'VARCHAR(128)', 'VARCHAR(128)']
     column_names = ['alias', 'directory', 'filepath', 'filename', 'file_size', 'run_time', 'error', 'ega_box', 'status']
                     
     # define table format including constraints    
@@ -196,9 +196,16 @@ def insert_data(database, credential_file,  table, data, column_names):
     conn = connect_to_database(credential_file, database)
     cur = conn.cursor()
     # add data
-    vals = '(' + ','.join(['?'] * len(data[0])) + ')'
-    cur.executemany('INSERT INTO {0} {1} VALUES {2}'.format(table, tuple(column_names), vals), data)
-    conn.commit()
+    #vals = '(' + ','.join(['?'] * len(data[0])) + ')'
+    vals = "(" + ','.join(["'%s'"] * len(data[0])) + ")"
+    column_names = ', '.join(column_names)
+    mycmd = "INSERT INTO {0} ({1}) VALUES {2}".format(table, column_names, vals)
+       
+    for i in range(len(data)):
+        cmd = mycmd % data[i]
+        cur.execute(cmd)
+        conn.commit()
+    
     conn.close()
 
 
@@ -592,8 +599,10 @@ def add_file_info(args):
             filename = os.path.basename(file)
             filedir = os.path.join(args.workingdir, str(uuid.uuid4()))
             status = 'upload'
-            newdata.append([alias, filedir, file, filename, file_size, args.box, status])        
-        
+            error = 'NULL'
+            runtime = str(args.runtime)
+            newdata.append((alias, filedir, file, filename, str(file_size), runtime, error, args.box, status))        
+    
     # add data
     insert_data(args.database, args.credential_file, args.table, newdata, column_names)
 
@@ -728,6 +737,7 @@ if __name__ == '__main__':
     file_parser.add_argument('-b', '--box', dest='box', help='EGA submission box', required=True)
     file_parser.add_argument('-c', '--credential_file', dest='credential_file', help='Path to the file containing the passwords', required=True)
     file_parser.add_argument('-t', '--table', dest='table', default = 'ega_uploads', help='Table storing the file information in the database. Default is ega_uploads')
+    file_parser.add_argument('-r', '--runtime', dest='runtime', default = 15, help='Run time in hours allocated to the file upload. Default is 15 hours')
     file_parser.set_defaults(func=add_file_info)
 
     # upload parser
