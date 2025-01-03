@@ -119,47 +119,6 @@ def create_table(database, credential_file, table):
         conn.close()
 
 
-# def initiate_db(database, table = 'ega_uploads'):
-#     '''
-#     (str) -> None
-    
-#     Create tables in database
-    
-#     Parameters
-#     ----------
-#     - database (str): Path to the database file
-#     '''
-    
-#     # check if table exists
-#     conn = sqlite3.connect(database)
-#     cur = conn.cursor()
-#     cur.execute("SELECT name FROM sqlite_master WHERE type='table';")
-#     tables = cur.fetchall()
-#     tables = [i[0] for i in tables]    
-#     conn.close()
-    
-#     if table not in tables:
-#         create_table(database, table)
-
-
-
-# def connect_to_db(database):
-#     '''
-#     (str) -> sqlite3.Connection
-    
-#     Returns a connection to SqLite database prov_report.db.
-#     This database contains information extracted from FPR
-    
-#     Parameters
-#     ----------
-#     - database (str): Path to the sqlite database
-#     '''
-    
-#     conn = sqlite3.connect(database)
-#     conn.row_factory = sqlite3.Row
-#     return conn
-
-
 def get_file_size(file):
     '''
     (str) -> int
@@ -196,7 +155,6 @@ def insert_data(database, credential_file,  table, data, column_names):
     conn = connect_to_database(credential_file, database)
     cur = conn.cursor()
     # add data
-    #vals = '(' + ','.join(['?'] * len(data[0])) + ')'
     vals = "(" + ','.join(["'%s'"] * len(data[0])) + ")"
     column_names = ', '.join(column_names)
     mycmd = "INSERT INTO {0} ({1}) VALUES {2}".format(table, column_names, vals)
@@ -276,12 +234,37 @@ def count_uploading_files(database, credential_file, table, box):
     '''
        
     conn = connect_to_database(credential_file, database)
-    data = conn.execute('SELECT * FROM {0} WHERE box = \"{1}\" AND status = \"uploading\"'.format(table, box))
-    data = list(set(data))
+    cur = conn.cursor()
+    cur.execute('SELECT * FROM {0} WHERE ega_box = \"{1}\" AND status = \"uploading\"'.format(table, box))
+    data = cur.fetchall() 
     conn.close()
+    data = list(set(data))
     return len(data)
 
 
+def format_data(data, database, credential_file, table):
+    '''
+    (list, str, str, str) -> list
+    
+    Returns a list of dictionaries with column names and data extracted from the 
+    same table in database
+        
+    Parameters
+    ----------
+    - data (list): List of data extracted from the table in database
+    - database (str): Name of the database 
+    - credential_file (str): Path to the file with databse credentials
+    - table (str): Name of the table in the databse 
+    '''
+    
+    column_names = get_column_names(database, credential_file, table)
+    
+    L = []
+    for i in range(len(data)):
+        d = {j[0]: j[1] for j in zip(column_names, data[i])}           
+        L.append(d)
+        
+    return L    
 
 
 def collect_files(database, credential_file, table, box, max_upload, uploading_files):
@@ -300,7 +283,9 @@ def collect_files(database, credential_file, table, box, max_upload, uploading_f
     '''
     
     conn = connect_to_database(credential_file, database)
-    data = conn.execute('SELECT * FROM {0} WHERE ega_box=\"{1}\" AND status = \"upload\"'.format(table, box))
+    cur = conn.cursor()
+    cur.execute('SELECT * FROM {0} WHERE ega_box=\"{1}\" AND status = \"upload\"'.format(table, box))
+    data = cur.fetchall()
     if data:
         m = max_upload - uploading_files
         if m < 0:
@@ -352,7 +337,8 @@ def update_message_status(database, credential_file, table, new_status, alias, b
     '''
 
     conn = connect_to_database(credential_file, database)
-    conn.execute('UPDATE {0} SET {0}.{1}=\"{2}\" WHERE {0}.alias=\"{3}\" AND {0}.ega_box=\"{4}\" AND {0}.filepath = \"{5}\";'.format(table, column, new_status, alias, box, file))
+    cur = conn.cursor()
+    cur.execute('UPDATE {0} SET {0}.{1}=\"{2}\" WHERE {0}.alias=\"{3}\" AND {0}.ega_box=\"{4}\" AND {0}.filepath = \"{5}\";'.format(table, column, new_status, alias, box, file))
     conn.commit()
     conn.close()
 
@@ -538,7 +524,7 @@ def get_job_exit_status(jobnum):
 
 def get_run_time(database, credential_file, table, box, file, alias):
     '''
-    database, credential_file, table, box, file, alias
+    (str, str, str, str, str, str) -> int
     
     Returns the run time allocated to the uploading job 
         
@@ -553,11 +539,16 @@ def get_run_time(database, credential_file, table, box, file, alias):
     '''
     
     conn = connect_to_database(credential_file, database)
-    data = conn.execute('SELECT * FROM {0} WHERE ega_box=\"{1}\" AND filepath = \"{2}\" AND alias = \"{3}\"'.format(table, box, file, alias))
+    cur = conn.cursor()
+    cur.execute('SELECT * FROM {0} WHERE ega_box=\"{1}\" AND filepath = \"{2}\" AND alias = \"{3}\"'.format(table, box, file, alias))
+    data = cur.fetchall()
+    data = list(set(data))
     assert len(data) == 1
     conn.close()
     
-    runtime = int(data[0]['run_time'])
+    L = format_data(data, database, credential_file, table)
+    assert len(L) == 1
+    runtime = int(L[0]['run_time'])
     
     return runtime
 
@@ -635,7 +626,9 @@ def upload_files(args):
     # count the number of uploading files
     uploading_files = count_uploading_files(args.database, args.credential_file, args.table, args.box)
     files = collect_files(args.database, args.credential_file, args.table, args.box, args.max_upload, uploading_files)
-    
+    # format files to get dictionaries with column names
+    files = format_data(files, args.database, args.credential_file, args.table)
+        
     # check if files are ready for upload
     if files:
         # get the footprint on the box
@@ -643,14 +636,14 @@ def upload_files(args):
         # convert to terabytes
         footprint = footprint / 1e12
         # get the size of the data to upload
-        upload_size = sum([i['file_size'] for i in files]) / 1e12
+        upload_size = sum([int(i['file_size']) for i in files]) / 1e12
     
         # check if uploading is below the allowed quota
         if footprint + upload_size < args.quota:
             # can upload. write qsubs. launch jobs
             for i in files:
                 alias = i['alias']
-                workingdir = i['workingdir']
+                workingdir = i['directory']
                 filepath = i['filepath']
                 run_time = i['run_time']
                 write_qsubs(alias, filepath, args.box, password, workingdir, args.mem, run_time, args.host, args.database, args.credential_file, args.table)
