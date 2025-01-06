@@ -387,11 +387,10 @@ def write_qsubs(alias, file, box, password, workingdir, mem, run_time, host, dat
     with open(qsubscript, 'w') as newfile:
         newfile.write(myqsubcmd)
     
-    
     # launch job and collect job exit status and job name
-    #job = subprocess.call(myqsubcmd, shell=True)
-    #job_exits.append(job)
-    #job_names.append(jobname)
+    job = subprocess.call(myqsubcmd, shell=True)
+    job_exits.append(job)
+    job_names.append(jobname)
     
     # update status to uploading
     update_message_status(database, credential_file, table, 'uploading', alias, box, file, 'status')
@@ -414,17 +413,17 @@ def write_qsubs(alias, file, box, password, workingdir, mem, run_time, host, dat
     with open(qsubscript2, 'w') as newfile:
         newfile.write(qsubcmd2)
     
-    #job = subprocess.call(qsubcmd2, shell=True)
+    job = subprocess.call(qsubcmd2, shell=True)
     # store the exit code (but not the job name)
-    #job_exits.append(job)          
+    job_exits.append(job)          
     
-    # # check if upload launched properly
-    # if not (len(set(job_exits)) == 1 and list(set(job_exits))[0] == 0):
-    #     # record error message, reset status same uploading --> upload
-    #     # update status uploading -- > upload
-    #     update_message_status(database, credential_file, table, 'upload', alias, box, file, 'status')
-    #     # update error message
-    #     update_message_status(database, credential_file, table, 'Could not launch upload jobs', alias, box, file, 'error')
+    # check if upload launched properly
+    if not (len(set(job_exits)) == 1 and list(set(job_exits))[0] == 0):
+         # record error message, reset status same uploading --> upload
+         # update status uploading -- > upload
+         update_message_status(database, credential_file, table, 'upload', alias, box, file, 'status')
+         # update error message
+         update_message_status(database, credential_file, table, 'Could not launch upload jobs', alias, box, file, 'error')
  
 
 
