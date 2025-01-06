@@ -418,13 +418,13 @@ def write_qsubs(alias, file, box, password, workingdir, mem, run_time, host, dat
     # store the exit code (but not the job name)
     #job_exits.append(job)          
     
-    # check if upload launched properly
-    if not (len(set(job_exits)) == 1 and list(set(job_exits))[0] == 0):
-        # record error message, reset status same uploading --> upload
-        # update status uploading -- > upload
-        update_message_status(database, credential_file, table, 'upload', alias, box, file, 'status')
-        # update error message
-        update_message_status(database, credential_file, table, 'Could not launch upload jobs', alias, box, file, 'error')
+    # # check if upload launched properly
+    # if not (len(set(job_exits)) == 1 and list(set(job_exits))[0] == 0):
+    #     # record error message, reset status same uploading --> upload
+    #     # update status uploading -- > upload
+    #     update_message_status(database, credential_file, table, 'upload', alias, box, file, 'status')
+    #     # update error message
+    #     update_message_status(database, credential_file, table, 'Could not launch upload jobs', alias, box, file, 'error')
  
 
 
@@ -439,7 +439,7 @@ def get_most_recent_log(logdir):
     - logdir (str): Path to the log directory     
     '''
     
-    logfiles = [os.path.join(logdir, i) for i in os.lidtdir() if 'upload' in i]
+    logfiles = [os.path.join(logdir, i) for i in os.listdir(logdir) if 'upload' in i and 'checkupload' not in i]
     if logfiles:
         D = {}
         for i in logfiles:
@@ -730,7 +730,7 @@ if __name__ == '__main__':
     file_parser.add_argument('-b', '--box', dest='box', help='EGA submission box', required=True)
     file_parser.add_argument('-c', '--credential_file', dest='credential_file', help='Path to the file containing the passwords', required=True)
     file_parser.add_argument('-t', '--table', dest='table', default = 'ega_uploads', help='Table storing the file information in the database. Default is ega_uploads')
-    file_parser.add_argument('-r', '--runtime', dest='runtime', default = 15, help='Run time in hours allocated to the file upload. Default is 15 hours')
+    file_parser.add_argument('-r', '--runtime', dest='runtime', default = 24, help='Run time in hours allocated to the file upload. Default is 15 hours')
     file_parser.set_defaults(func=add_file_info)
 
     # upload parser
