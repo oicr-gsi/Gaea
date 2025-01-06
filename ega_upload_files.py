@@ -343,10 +343,10 @@ def update_message_status(database, credential_file, table, new_status, alias, b
     conn.close()
 
    
-def write_qsubs(alias, file, box, password, workingdir, mem, run_time, host, database, credential_file, table):
+def write_qsubs(alias, file, box, workingdir, mem, run_time, host, database, credential_file, table):
     '''
-    (str, str, str, str, str, int, int, str, str, str) -> None
-    
+    (str, str, str, str, int, int, str, str, str, str) -> None
+        
     Write and launch qsubs to upload the files
         
     Parameters
@@ -354,14 +354,21 @@ def write_qsubs(alias, file, box, password, workingdir, mem, run_time, host, dat
     - alias (str): Alias associated with the file
     - file (str): Path of the file to upload
     - box (str): EGA submission box (ega-box-xxx)
-    - password (str): Password of the ega submission box
-    - working_dir (str): Path to the workfing direcvtory containing the qsubs 
+    - workingdir (str): Path to the workfing direcvtory containing the qsubs 
     - mem (int): Job memory requirement
     - run_time (int): Job run time requirement
     - host (str): xfer host
     - database (str): Name of the submission database
+    - credential_file (str): Path to the file contasining database and box credentials
     - table (str): Name of the table storing the file information
     '''
+    
+    
+    
+    credentials = extract_credentials(credential_file)
+    box_pwd = credentials[box]
+    
+    
     
     if os.path.isdir(workingdir) == False:
         os.makedirs(workingdir, exist_ok=True)
@@ -380,7 +387,7 @@ def write_qsubs(alias, file, box, password, workingdir, mem, run_time, host, dat
     filename = os.path.basename(file)
     bashscript = os.path.join(qsubdir, alias + '.' + filename + '.upload.sh')
     with open(bashscript, 'w') as newfile:
-        newfile.write(uploadcmd.format(host, box, password, file))
+        newfile.write(uploadcmd.format(host, box, box_pwd, file))
     qsubscript = os.path.join(qsubdir, alias + '.' + filename + '.upload.qsub')
     jobname = alias + '.upload.' + filename
     myqsubcmd = qsubcmd.format(mem, run_time, jobname, logdir, bashscript)
@@ -617,7 +624,7 @@ def upload_files(args):
     
     # parse credentials and get password
     credentials = extract_credentials(args.credential_file)
-    password = credentials[args.box]
+    box_pwd = credentials[args.box]
     
     # get the files to upload
     # count the number of uploading files
@@ -629,7 +636,7 @@ def upload_files(args):
     # check if files are ready for upload
     if files:
         # get the footprint on the box
-        footprint = get_box_footprint(args.host, args.box, password)
+        footprint = get_box_footprint(args.host, args.box, box_pwd)
         # convert to terabytes
         footprint = footprint / 1e12
         # get the size of the data to upload
@@ -643,7 +650,7 @@ def upload_files(args):
                 workingdir = i['directory']
                 filepath = i['filepath']
                 run_time = i['run_time']
-                write_qsubs(alias, filepath, args.box, password, workingdir, args.mem, run_time, args.host, args.database, args.credential_file, args.table)
+                write_qsubs(alias, filepath, args.box, workingdir, args.mem, run_time, args.host, args.database, args.credential_file, args.table)
 
 
 def check_upload_files(args):
