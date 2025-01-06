@@ -398,9 +398,7 @@ def write_qsubs(alias, file, box, password, workingdir, mem, run_time, host, dat
     update_message_status(database, credential_file, table, 'NULL', alias, box, file, 'error')         
     
     # launch check upload job
-    myscript = '/u/rjovelin/SOFT/anaconda3/bin/python3.6 /scratch2/groups/gsi/bis/rjovelin/EGA_submissions_portal/ega_upload_files.py'
-    checkcmd = 'sleep 60; {0} check_upload -w {1} -b {2} -f {3} -db {4} -t {5} -a {6} -c {7}'.format(myscript, workingdir, box, file, database, table, alias, credential_file)  
-     
+    checkcmd = 'sleep 60; module load ega-upload; egaUpload check_upload -w {0} -b {1} -f {2} -db {3} -t {4} -a {5} -c {6}'.format(workingdir, box, file, database, table, alias, credential_file)  
     bashscript2 = os.path.join(qsubdir, alias + '.' + filename + '.check_upload.sh')
     with open(bashscript2, 'w') as newfile:
         newfile.write(checkcmd)
