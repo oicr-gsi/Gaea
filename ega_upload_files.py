@@ -287,7 +287,7 @@ def collect_files(database, credential_file, table, box, max_upload, uploading_f
     cur.execute('SELECT * FROM {0} WHERE ega_box=\"{1}\" AND status = \"upload\"'.format(table, box))
     data = cur.fetchall()
     if data:
-        m = max_upload - uploading_files
+        m = int(max_upload) - int(uploading_files)
         if m < 0:
             m = 0
         data = data[:m]
