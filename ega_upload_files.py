@@ -310,12 +310,15 @@ def get_box_footprint(host, box, password):
     '''
     
     L = subprocess.check_output("ssh {0} \"lftp -u {1},{2} -e \\\"cd to-encrypt;ls -l;bye;\\\" sftp://inbox.ega-archive.org\"".format(host, box, password), shell=True).rstrip().decode('utf-8').split('\n')
-    for i in range(len(L)):
-        L[i] = L[i].split()
-        L[i] = int(L[i][4])
-
-    return sum(L)
-
+    
+    if len(L) == 1 and L[0] == '':
+        footprint = 0
+    else:
+        for i in range(len(L)):
+            L[i] = L[i].split()
+            L[i] = int(L[i][4])
+        footprint = sum(L)
+    return footprint
 
 def update_message_status(database, credential_file, table, new_status, alias, box, file, column):
     '''
