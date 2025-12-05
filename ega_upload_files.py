@@ -101,8 +101,8 @@ def create_table(database, credential_file, table):
     - table (str): Table name
     '''
 
-    column_types = ['VARCHAR(572)', 'TEXT', 'TEXT', 'VARCHAR(128)', 'VARCHAR(572)', 'VARCHAR(128)', 'VARCHAR(572)', 'VARCHAR(128)', 'VARCHAR(128)']
-    column_names = ['alias', 'directory', 'filepath', 'filename', 'file_size', 'run_time', 'error', 'ega_box', 'status']
+    column_types = ['VARCHAR(572)', 'TEXT', 'TEXT', 'VARCHAR(128)', 'VARCHAR(572)', 'VARCHAR(128)', 'VARCHAR(572)', 'VARCHAR(128)', 'VARCHAR(128)', 'VARCHAR(255)']
+    column_names = ['alias', 'directory', 'filepath', 'filename', 'file_size', 'run_time', 'error', 'ega_box', 'status', 'project']
                     
     # define table format including constraints    
     table_format = ', '.join(list(map(lambda x: ' '.join(x), list(zip(column_names, column_types)))))
@@ -575,6 +575,7 @@ def add_file_info(args):
     - box (str): ega-box of interest
     - workingdir (str): Working directory where subdirctories and qsubs are written
     - credential_file (str): Path to the file containing the database and EGA passwords
+    - project (str): Name of the study/project
     '''
 
     # create table if it doesn't exist
@@ -599,7 +600,7 @@ def add_file_info(args):
             status = 'upload'
             error = 'NULL'
             runtime = str(args.runtime)
-            newdata.append((alias, filedir, file, filename, str(file_size), runtime, error, args.box, status))        
+            newdata.append((alias, filedir, file, filename, str(file_size), runtime, error, args.box, status, args.project))        
     
     # add data
     insert_data(args.database, args.credential_file, args.table, newdata, column_names)
@@ -738,6 +739,7 @@ if __name__ == '__main__':
     file_parser.add_argument('-c', '--credential_file', dest='credential_file', help='Path to the file containing the passwords', required=True)
     file_parser.add_argument('-t', '--table', dest='table', default = 'ega_uploads', help='Table storing the file information in the database. Default is ega_uploads')
     file_parser.add_argument('-r', '--runtime', dest='runtime', default = 24, help='Run time in hours allocated to the file upload. Default is 15 hours')
+    file_parser.add_argument('-p', '--project', dest='project', help='Name of the study or project', required=True)
     file_parser.set_defaults(func=add_file_info)
 
     # upload parser
