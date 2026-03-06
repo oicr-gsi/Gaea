@@ -353,9 +353,9 @@ def write_qsubs(alias, file, box, workingdir, mem, run_time, host, database, cre
     job_names.append(jobname)
     
     # update status to uploading
-    update_message_status(database, credential_file, table, 'uploading', alias, box, file, 'status')
+    update_message_status(database, table, 'uploading', alias, box, file, 'status')
     # update error message
-    update_message_status(database, credential_file, table, 'NULL', alias, box, file, 'error')         
+    update_message_status(database, table, 'NULL', alias, box, file, 'error')         
     
     # launch check upload job
     checkcmd = 'sleep 60; module load ega-upload; egaUpload check_upload -w {0} -b {1} -f {2} -db {3} -t {4} -a {5} -c {6}'.format(workingdir, box, file, database, table, alias, credential_file)  
