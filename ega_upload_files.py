@@ -291,7 +291,7 @@ def update_message_status(database, table, new_status, alias, box, file, column)
     '''
 
     conn = connect_to_db(database)
-    conn.execute('UPDATE {0} SET {0}.{1}=\"{2}\" WHERE {0}.alias=\"{3}\" AND {0}.ega_box=\"{4}\" AND {0}.filepath = \"{5}\";'.format(table, column, new_status, alias, box, file))
+    conn.execute('UPDATE {0} SET {1}=\"{2}\" WHERE alias=\"{3}\" AND ega_box=\"{4}\" AND filepath = \"{5}\";'.format(table, column, new_status, alias, box, file))
     conn.commit()
     conn.close()
 
