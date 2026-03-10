@@ -358,7 +358,7 @@ def write_qsubs(alias, file, box, workingdir, mem, run_time, host, database, cre
     update_message_status(database, table, 'NULL', alias, box, file, 'error')         
     
     # launch check upload job
-    checkcmd = 'sleep 60; module load ega-upload; egaUpload check_upload -w {0} -b {1} -f {2} -db {3} -t {4} -a {5} -c {6}'.format(workingdir, box, file, database, table, alias, credential_file)  
+    checkcmd = 'sleep 60; module load ega-upload; egaUpload check_upload -w {0} -b {1} -f {2} -db {3} -t {4} -a {5}'.format(workingdir, box, file, database, table, alias)  
     bashscript2 = os.path.join(qsubdir, alias + '.' + filename + '.check_upload.sh')
     with open(bashscript2, 'w') as newfile:
         newfile.write(checkcmd)
