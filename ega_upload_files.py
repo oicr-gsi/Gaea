@@ -140,8 +140,12 @@ def insert_data(database, table, data, column_names):
     conn = connect_to_db(database)
     
     # add data
-    vals = "(" + ','.join(["'%s'"] * len(data[0])) + ")"
-    conn.executemany('INSERT INTO {0} {1} VALUES {2}'.format(table, tuple(column_names), vals), data)
+    #vals = "(" + ','.join(["'%s'"] * len(data[0])) + ")"
+    #conn.executemany('INSERT INTO {0} {1} VALUES {2}'.format(table, tuple(column_names), vals), data)
+    
+    vals = "(" + ','.join(["?"] * len(data[0])) + ")"
+    mysql = 'INSERT INTO {0} {1} VALUES{2}'.format(table, tuple(column_names), vals)
+    conn.executemany(mysql, data)
     conn.commit()
           
     conn.close()
