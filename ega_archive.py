@@ -221,20 +221,21 @@ def extract_project_data(provenance, project):
                      'sample_id': [sample_id]}
             
             
-            if file_swid not in D:
-                D[file_swid] = d
-            else:
-                assert D[file_swid]['file_path'] == file_path
-                assert D[file_swid]['external_name'] == geo['geo_external_name']
-                D[file_swid]['sample_id'].append(sample_id)
-                D[file_swid]['donor'].append(donor)
-                D[file_swid]['limskey'].append(limskey)
-                D[file_swid]['library'].append(library)
-                D[file_swid]['tissue_type'].append(geo['geo_tissue_type'])
-                D[file_swid]['tissue_origin'].append(geo['geo_tissue_origin'])
-                D[file_swid]['library_source'].append(geo['geo_library_source_template_type'])
-                D[file_swid]['groupdesc'].append(geo['geo_group_id_description'])
-                D[file_swid]['groupid'].append(geo['geo_group_id'])
+                if file_swid not in D:
+                    D[file_swid] = d
+                else:
+                    assert D[file_swid]['file_path'] == file_path
+                    assert D[file_swid]['external_name'] == geo['geo_external_name']
+                    assert D[file_swid]['donor'] == donor
+                    D[file_swid]['sample_id'].append(sample_id)
+                    #D[file_swid]['donor'].append(donor)
+                    D[file_swid]['limskey'].append(limskey)
+                    D[file_swid]['library'].append(library)
+                    D[file_swid]['tissue_type'].append(geo['geo_tissue_type'])
+                    D[file_swid]['tissue_origin'].append(geo['geo_tissue_origin'])
+                    D[file_swid]['library_source'].append(geo['geo_library_source_template_type'])
+                    D[file_swid]['groupdesc'].append(geo['geo_group_id_description'])
+                    D[file_swid]['groupid'].append(geo['geo_group_id'])
                 
     
     return D    
@@ -243,13 +244,14 @@ def extract_project_data(provenance, project):
 
 
 
-def write_manifest(data, projectdir):
+def write_manifest(data, project, projectdir):
     '''
-    (dict, str) -> None
+    (dict, str, str) -> None
     
     Parameters
     ----------
     - data (dict): Dictionary with file information for a given project extracted from FPR
+    - project (str): Name of project oif interest
     - projectdir (str): Project directory where data is organized
     '''
 
@@ -272,7 +274,7 @@ def write_manifest(data, projectdir):
               'tissue_origin',
               'deleted']
 
-    manifest = os.path.join(projectdir, '{0}.MANIFEST.txt')
+    manifest = os.path.join(projectdir, '{0}.MANIFEST.txt'.format(project))
     newfile = open(manifest, 'w') 
     newfile.write('\t'.join(header) + '\n')                    
         
