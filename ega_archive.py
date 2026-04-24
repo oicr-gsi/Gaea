@@ -9,8 +9,8 @@ Created on Tue Apr 21 16:41:39 2026
 import argparse
 import os
 import gzip
-
-
+import sys
+import subprocess
 
 def is_gzipped(file):
     '''
@@ -240,9 +240,6 @@ def extract_project_data(provenance, project):
     
     return D    
         
-            
-
-
 
 def write_manifest(data, project, projectdir):
     '''
@@ -375,18 +372,174 @@ def organize_data(args):
         link_files(data, stagedir)
         print('linked data to {0}'.format(stagedir))
         # write manifest with file information
-        write_manifest(data, projectdir)
+        write_manifest(data, args.project, projectdir)
         print('wrote manifest in {0}'.format(projectdir))
+   
     
+   
+def encrypt_folder(folder, donor, gsi_age_key, it_age_key, archivedir, qsubdir, logdir, memory, runtime):
+    '''
+        
+    Write and launch jobs to tar and encrypt the linked donor data
+        
+    Parameters
+    ----------
+    - folder (str): Direcotry with linked data to data and encrypt
+    - donor (str): Name of the donor
+    - gsi_age_key (str): GSI age public encrytion key
+    - it_age_key (str): IT age public encryption key
+    - archivedir (str): Output directory where the encrypted tarball is written
+    - qsubdir (str): Directory where asub and bash scripts are written
+    - logdir (str): Directory where logs are written
+    - memory (int): Job memory
+    - runtime (int): Job run time in hours
+    '''
+    
+    
+    encryptcmd = "tar -cvhz {0} | age -r {1} -r {2} > {3}"
+    qsubcmd = "qsub -cwd -b y -P gsi -l h_vmem={0}g,h_rt={1}:0:0 -N {2} -e {3} -o {3} \"bash {4}\""
+    # age output: encrypted tarball
+    encrypted_file = os.path.join(archivedir, '{0}.tar.gz.age'.format(donor))
+    # get the encryption command
+    myencryptcmd = encryptcmd.format(folder, gsi_age_key, it_age_key, encrypted_file)
+    # write bash and qsub scripts
+    bashscript = os.path.join(qsubdir, '{0}.encrypt.sh'.format(donor))
+    with open(bashscript, 'w') as newfile:
+        newfile.write(myencryptcmd)
+    qsubscript = os.path.join(qsubdir, '{0}.encrypt.qsub'.format(donor))
+    myqsubcmd = qsubcmd.format(memory, runtime, '{0}.encrypt'.format(donor), logdir, bashscript)
+    with open(qsubscript, 'w') as newfile:
+        newfile.write(myqsubcmd)
+    # launch job 
+    subprocess.call(myqsubcmd, shell=True)
+
+    
+def encrypt_file(file, gsi_age_key, it_age_key, archivedir, qsubdir, logdir, memory, runtime):
+    '''        
+    Write and launch jobs to encrypt a single file
+        
+    Parameters
+    ----------
+    - file (str): File to encrypt
+    - gsi_age_key (str): GSI age public encrytion key
+    - it_age_key (str): IT age public encryption key
+    - archivedir (str): Output directory where the encrypted file is written
+    - qsubdir (str): Directory where qsub script is written
+    - logdir (str): Directory where logs are written
+    - memory (int): Job memory
+    - runtime (int): Job run time in hours
+    '''
+    
+    encryptcmd = "age -r {1} -r {2} > {3}"
+    qsubcmd = "qsub -cwd -b y -P gsi -l h_vmem={0}g,h_rt={1}:0:0 -N {2} -e {3} -o {3} \"{4}\""
+    
+    filename = os.path.basename(filename) 
+    
+    # age output: encrypted tarball
+    encrypted_file = os.path.join(archivedir, filename + '.age')
+    # get the encryption command
+    myencryptcmd = encryptcmd.format(gsi_age_key, it_age_key, encrypted_file)
+    
+    qsubscript = os.path.join(qsubdir, '{0}.encrypt.qsub'.format(filename))
+    myqsubcmd = qsubcmd.format(memory, runtime, '{0}.encrypt'.format(filename), logdir, myencryptcmd)
+    with open(qsubscript, 'w') as newfile:
+        newfile.write(myqsubcmd)
+    # launch job 
+    subprocess.call(myqsubcmd, shell=True)
+
+    
+def encrypt_data(args):
+    '''
+    
+    
+    
+    
+    '''
+    
+    # check options
+    
+    if args.file:
+        a = [args.directory, args.archive]
+        if any(a):
+            c = ['-d', '-a']
+            err = ','.join([c[i] for i in range(len(c)) if a[i]])
+            sys.exit('-f cannot be used with options {0}'.format(err))
+    elif args.directory:
+        a = [args.file, args.archive]
+        if any(a):
+            c = ['-f', '-a']
+            err = ','.join([c[i] for i in range(len(c)) if a[i]])
+            sys.exit('-d cannot be used with options {0}'.format(err))
+    elif args.archive:
+        a = [args.file, args.directory]
+        if any(a):
+            c = ['-f', '-d']
+            err = ','.join([c[i] for i in range(len(c)) if a[i]])
+            sys.exit('-a cannot be used with options {0}'.format(err))
+        
+    # get age public keys
+    infile = open(args.gsi_age_pub_key)
+    gsi_age_key = infile.readline().rstrip()
+    infile.close()
+    infile = open(args.it_age_pub_key)
+    it_age_key = infile.readline().rstrip()
+    infile.close()
+    
+    # create project dir
+    projectdir = os.path.join(args.ega_stage, args.project)
+    os.makedirs(projectdir, exist_ok=True)
+    # create directory for encrypted data
+    archivedir = os.path.join(projectdir, 'encrypted')
+    os.makedirs(archivedir, exist_ok=True)
+    
+    # create qsubs dir
+    qsubdir = os.makedirs(projectdir, 'qsubs')
+    os.makedirs(qsubdir, exist_ok=True)
+    # create log dir
+    logdir = os.makedirs(qsubdir, 'logs')
+    os.makedirs(logdir, exist_ok=True)
+    
+    # archive a single folder
+    if args.directory:
+        donor = os.path.basename(args.directory)
+        encrypt_folder(args.directory, donor, gsi_age_key, it_age_key, archivedir, qsubdir, logdir, args.memory, args.runtime)
+    # archive all folders in directory
+    elif args.archive:
+        # get all the directories in the folder
+        L = [os.path.join(args.archive, i) for i in os.listdir(args.archive) if os.path.isdir(os.path.join(args.archive, i))]
+        for i in L:
+            # get the donor name
+            donor = os.path.basename(i)
+            encrypt_folder(i, donor, gsi_age_key, it_age_key, archivedir, qsubdir, logdir, args.memory, args.runtime)
+    # archive a single file
+    elif args.file:
+        encrypt_file(args.file, gsi_age_key, it_age_key, archivedir, qsubdir, logdir, args.memory, args.runtime)
+
+   
    
 if __name__ == '__main__':
 
     # create top-level parser
     parser = argparse.ArgumentParser(prog = 'ega_archive.py', description='A tool to organize data to be moved to EGA stage')
-    parser.add_argument('-es', '--ega_stage', dest='ega_stage', default = '/.mounts/labs/gsiprojects/gsi/Data_Transfer/Release/EGA_STAGE', help='Directory where the links are organized. Default is /.mounts/labs/gsiprojects/gsi/Data_Transfer/Release/EGA_STAGE')
-    parser.add_argument('-fpr', '--fpr', dest='fpr', default = '/scratch2/groups/gsi/production/vidarr/vidarr_files_report_latest.tsv.gz', help='Path to File Provenance Report. Default is /scratch2/groups/gsi/production/vidarr/vidarr_files_report_latest.tsv.gz')
-    parser.add_argument('-p', '--project', dest='project', help='Name of project of interest', required=True)
-    parser.set_defaults(func=organize_data)
+    subparsers = parser.add_subparsers(help='sub-command help', dest='subparser_name')
+       
+    o_parser = subparsers.add_parser('link', help="Link files to release")
+    o_parser.add_argument('-es', '--ega_stage', dest='ega_stage', default = '/.mounts/labs/gsiprojects/gsi/Data_Transfer/Release/EGA_STAGE', help='Directory where the links are organized. Default is /.mounts/labs/gsiprojects/gsi/Data_Transfer/Release/EGA_STAGE')
+    o_parser.add_argument('-fpr', '--fpr', dest='fpr', default = '/scratch2/groups/gsi/production/vidarr/vidarr_files_report_latest.tsv.gz', help='Path to File Provenance Report. Default is /scratch2/groups/gsi/production/vidarr/vidarr_files_report_latest.tsv.gz')
+    o_parser.add_argument('-p', '--project', dest='project', help='Name of project of interest', required=True)
+    o_parser.set_defaults(func=organize_data)
+    
+    e_parser = subparsers.add_parser('encrypt', help="Encrypt data")
+    e_parser.add_argument('-p', '--project', dest='project', help='Name of project of interest', required=True)
+    e_parser.add_argument('-es', '--ega_stage', dest='ega_stage', default = '/.mounts/labs/gsiprojects/gsi/Data_Transfer/Release/EGA_STAGE', help='Directory where the links are organized. Default is /.mounts/labs/gsiprojects/gsi/Data_Transfer/Release/EGA_STAGE')
+    e_parser.add_argument('-f', '--file', dest='file', help='Path to the file to encrypt')
+    e_parser.add_argument('-d', '--directory', dest='directory', help='Path to the directory to tar and encrypt')
+    e_parser.add_argument('-a', '--archive', dest='archive', help='Path to the directory containing subfolders to with linked donor data to tar and encrypt')
+    e_parser.add_argument('-gk', '--gsikey', dest='gsi_age_pub_key', default = '/.mounts/labs/gsi/secrets/GSI_AGE_PUB_KEY', help='Path to the GSI age public key. Default is /.mounts/labs/gsi/secrets/GSI_AGE_PUB_KEY')
+    e_parser.add_argument('-ik', '--itkey', dest='it_age_pub_key', default = '/.mounts/labs/gsi/secrets/IT_AGE_PUB_KEY', help='Path to the IT age public key. Default is /.mounts/labs/gsi/secrets/IT_AGE_PUB_KEY')
+    e_parser.add_argument('-m', '--memory', dest='memory', default = '20', help='Encryption job memory. Default is 20G')
+    e_parser.add_argument('-r', '--runtime', dest='runtime', default = '5', help='Encryption job runtime. Default is 5 hours')
+    e_parser.set_defaults(func=encrypt_data)
     
     # get arguments from the command line
     args = parser.parse_args()
