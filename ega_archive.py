@@ -379,7 +379,8 @@ def organize_data(args):
    
 def encrypt_folder(folder, donor, gsi_age_key, it_age_key, archivedir, qsubdir, logdir, memory, runtime):
     '''
-        
+    (str, str, str, str, str, str, str, int, int)    
+    
     Write and launch jobs to tar and encrypt the linked donor data
         
     Parameters
@@ -415,7 +416,9 @@ def encrypt_folder(folder, donor, gsi_age_key, it_age_key, archivedir, qsubdir, 
 
     
 def encrypt_file(file, gsi_age_key, it_age_key, archivedir, qsubdir, logdir, memory, runtime):
-    '''        
+    '''     
+    (str, str, str, str, str, str, int, int) -> None
+        
     Write and launch jobs to encrypt a single file
         
     Parameters
@@ -450,10 +453,21 @@ def encrypt_file(file, gsi_age_key, it_age_key, archivedir, qsubdir, logdir, mem
     
 def encrypt_data(args):
     '''
+    (str, str, str, str, str, str, str, int, int) -> None
     
-    
-    
-    
+    Encrypt data (single file, single folder or arcive with subfolders)
+        
+    Parameters
+    ----------
+    - project (str): Name of project of interest
+    - ega_stage (str): Directory where the links are organized
+    - file (str): Path to the file to encrypt
+    - directory (str): Path to the directory to tar and encrypt
+    - archive (str): Path to the directory containing subfolders to with linked donor data to tar and encrypt
+    - gsi_age_pub_key (str): Path to the GSI age public key
+    - it_age_pub_key (str): Path to the IT age public key
+    - memory (int): Encryption job memory. Default is 20G
+    - runtime (in): Encryption job runtime
     '''
     
     # check options
