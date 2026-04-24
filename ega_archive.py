@@ -433,7 +433,7 @@ def encrypt_file(file, gsi_age_key, it_age_key, archivedir, qsubdir, logdir, mem
     encryptcmd = "age -r {1} -r {2} > {3}"
     qsubcmd = "qsub -cwd -b y -P gsi -l h_vmem={0}g,h_rt={1}:0:0 -N {2} -e {3} -o {3} \"{4}\""
     
-    filename = os.path.basename(filename) 
+    filename = os.path.basename(file) 
     
     # age output: encrypted tarball
     encrypted_file = os.path.join(archivedir, filename + '.age')
