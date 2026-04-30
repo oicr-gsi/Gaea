@@ -13,6 +13,7 @@ import argparse
 import subprocess
 import uuid
 import sqlite3
+import sys
 
 
 def extract_credentials(credential_file):
@@ -717,6 +718,62 @@ def view_data(args):
             
 
 
+def update_records(args):
+    '''
+    
+    
+    
+
+    Parameters
+    ----------
+    args : TYPE
+        DESCRIPTION.
+
+    Returns
+    -------
+    None.
+
+    '''
+
+
+    # get table columns
+    valid_columns = get_column_names(args.database, args.table)
+    # get data    
+    conn = sqlite3.connect(args.database)
+    cur = conn.cursor()
+
+    # check that field is valid
+    if args.column not in valid_columns:
+        sys.exit('{0} is not a valid column: {1}'.format(args.column, ';'.join(valid_columns)))
+
+    condition = ' WHERE {0} =\"{1}\"'.format(args.column, args.old_value)
+    
+    L = [args.project, args.box, args.status, args.alias, args.file]
+    for i in L:
+        if args.project:
+            condition = condition + ' AND project = \"{0}\"'.format(args.project)
+        if args.box:
+            condition = condition + ' AND ega_box = \"{0}\"'.format(args.box)
+        if args.status:
+            condition = condition + ' AND status = \"{0}\"'.format(args.status)            
+        if args.alias:
+            condition = condition + ' AND alias = \"{0}\"'.format(args.alias)
+        if args.file:
+            condition = condition + ' AND file = \"{0}\"'.format(args.file)
+            
+    cmd = 'SELECT * FROM {0}'.format(args.table) + condition + ';'        
+    data = cur.execute(cmd).fetchall()
+    message = 'Found {0} records'.format(len(data)) + condition
+    print(message)
+    proceed = input("Update records? (yes or no): ")
+    if proceed == 'yes':
+        update_cmd = 'UPDATE {0} SET {1} = \"{2}\"'.format(args.table, args.column, args.new_value)
+        update_cmd = update_cmd + condition
+        cur.execute(update_cmd)
+        conn.commit()
+    conn.close()
+    
+
 
 if __name__ == '__main__':
 
@@ -776,18 +833,24 @@ if __name__ == '__main__':
     view_parser.add_argument('-f', '--files', dest='files', nargs = '*', help='White space separated list of files')
     view_parser.set_defaults(func=view_data)
     
+    # update database
+    update_parser = subparsers.add_parser('update', help="Update specific column")
+    update_parser.add_argument('-db', '--database', dest='database', default = '/.mounts/labs/gsiprojects/gsi/Data_Transfer/Release/PROJECTS/EGA/Submission_Tools/EGA_upload_database/EGA_uploads.db', \
+                             help='Path to the EGA submission database. Default is /.mounts/labs/gsiprojects/gsi/Data_Transfer/Release/PROJECTS/EGA/Submission_Tools/EGA_upload_database/EGA_uploads.db')
+    update_parser.add_argument('-t', '--table', dest='table', default = 'ega_uploads', help='Table storing the file information in the database. Default is ega_uploads')
+    update_parser.add_argument('-b', '--box', dest='box', help='Name of ega-box')
+    update_parser.add_argument('-p', '--project', dest='project', help='Project name')
+    update_parser.add_argument('-s', '--status', dest='status', help='Upload status')
+    update_parser.add_argument('-a', '--alias', dest='alias', help='Value of alias')
+    update_parser.add_argument('-f', '--file', dest='file', help='File name')
+    update_parser.add_argument('-c', '--column', dest='column', help='Column to update', required = True)
+    update_parser.add_argument('-o', '--oldvalue', dest='old_value', help='Current value of the column to update', required = True)
+    update_parser.add_argument('-n', '--newvalue', dest='new_value', help='New value of the column to update', required = True)
+    update_parser.set_defaults(func=update_records)
     
-
-
-
-
-
     # get arguments from the command line
     args = parser.parse_args()
     # pass the args to the default function
     args.func(args)
     
-
-
-
 
