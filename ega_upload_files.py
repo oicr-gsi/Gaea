@@ -691,19 +691,19 @@ def view_data(args):
     data = conn.execute('SELECT * FROM {0}'.format(args.table)).fetchall()
     
     if args.projects:
-        projects = list(map(lambda x: x.lower()), args.projects)
-        data = [i for i in data if i['project'].lower() in projects]
+        projects = list(map(lambda x: x.lower(), args.projects))
+        data = [i for i in data if i['project'] and i['project'].lower() in projects]
     if args.boxes:
-        boxes = list(map(lambda x: x.lower()), args.boxes)
+        boxes = list(map(lambda x: x.lower(), args.boxes))
         data = [i for i in data if i['ega_box'].lower() in boxes]
     if args.statuses:
-        status = list(map(lambda x: x.lower()), args.statuses)
+        status = list(map(lambda x: x.lower(), args.statuses))
         data = [i for i in data if i['status'].lower() in status]    
     if args.aliases:
-        aliases = list(map(lambda x: x.lower()), args.aliases)
+        aliases = list(map(lambda x: x.lower(), args.aliases))
         data = [i for i in data if i['alias'].lower() in aliases]    
     if args.files:
-        files = list(map(lambda x: x.lower()), args.files)
+        files = list(map(lambda x: x.lower(), args.files))
         data = [i for i in data if i['filename'].lower() in files or i['filepath'].lower() in files]
 
     print('Retrieved {0} records'.format(len(data)))
@@ -712,7 +712,13 @@ def view_data(args):
     if data:
         print('\t'.join(columns))
         for i in data:
-            L = '\t'.join([i[j] for j in columns])
+            L = []
+            for j in columns:
+                if i[j]:
+                    L.append(i[j])
+                else:
+                    L.append('NA')
+            L = '\t'.join(L)
             print(L)
             print('--')
             
@@ -746,31 +752,34 @@ def update_records(args):
     if args.column not in valid_columns:
         sys.exit('{0} is not a valid column: {1}'.format(args.column, ';'.join(valid_columns)))
 
-    condition = ' WHERE {0} =\"{1}\"'.format(args.column, args.old_value)
+    if args.old_value == 'None':
+        condition = ' WHERE {0} IS NULL'.format(args.column)
+    else:
+        condition = ' WHERE {0} =\"{1}\"'.format(args.column, args.old_value)
     
     L = [args.project, args.box, args.status, args.alias, args.file]
-    for i in L:
-        if args.project:
-            condition = condition + ' AND project = \"{0}\"'.format(args.project)
-        if args.box:
-            condition = condition + ' AND ega_box = \"{0}\"'.format(args.box)
-        if args.status:
-            condition = condition + ' AND status = \"{0}\"'.format(args.status)            
-        if args.alias:
-            condition = condition + ' AND alias = \"{0}\"'.format(args.alias)
-        if args.file:
-            condition = condition + ' AND file = \"{0}\"'.format(args.file)
-            
+    column_filters = ['project', 'ega_box', 'status', 'alias', 'file']
+    for i in range(len(L)):
+        if L[i]:
+            condition = condition + ' AND {0} = \"{1}\"'.format(column_filters[i], L[i])
+             
     cmd = 'SELECT * FROM {0}'.format(args.table) + condition + ';'        
     data = cur.execute(cmd).fetchall()
     message = 'Found {0} records'.format(len(data)) + condition
     print(message)
-    proceed = input("Update records? (yes or no): ")
-    if proceed == 'yes':
-        update_cmd = 'UPDATE {0} SET {1} = \"{2}\"'.format(args.table, args.column, args.new_value)
-        update_cmd = update_cmd + condition
-        cur.execute(update_cmd)
-        conn.commit()
+    if data:
+        proceed = input("Update records? (yes or no): ")
+        if proceed == 'yes':
+            update_cmd = 'UPDATE {0} SET {1} = \"{2}\"'.format(args.table, args.column, args.new_value)
+            update_cmd = update_cmd + condition
+            cur.execute(update_cmd)
+            conn.commit()
+    
+    ### check that changes have been made by querying the database
+    
+    
+    ### print message
+    
     conn.close()
     
 
