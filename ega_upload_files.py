@@ -665,6 +665,58 @@ def check_upload_files(args):
 
 
 
+def view_data(args):
+    '''
+    (str, str, list | None, list | None, list | None, list | None, list | None)
+    
+    Extracts and prints records from the database filered by box, project, alias, file and status if provided.
+        
+    Parameters
+    ----------    
+    - database (str): Path to the EGA submission database
+    - table (str): Table storing the file information in the database
+    - boxes (list | None): list of EGA submission boxes
+    - projects (list | None): list of projects
+    - statuses (list | None): list of status
+    - aliases (list | None): list of aliases
+    - files (list | None): list of files
+    '''
+    
+    
+    # get table columns
+    columns = get_column_names(args.database, args.table)
+    # get data    
+    conn = connect_to_db(args.database)
+    data = conn.execute('SELECT * FROM {0}'.format(args.table)).fetchall()
+    
+    if args.projects:
+        projects = list(map(lambda x: x.lower()), args.projects)
+        data = [i for i in data if i['project'].lower() in projects]
+    if args.boxes:
+        boxes = list(map(lambda x: x.lower()), args.boxes)
+        data = [i for i in data if i['ega_box'].lower() in boxes]
+    if args.statuses:
+        status = list(map(lambda x: x.lower()), args.statuses)
+        data = [i for i in data if i['status'].lower() in status]    
+    if args.aliases:
+        aliases = list(map(lambda x: x.lower()), args.aliases)
+        data = [i for i in data if i['alias'].lower() in aliases]    
+    if args.files:
+        files = list(map(lambda x: x.lower()), args.files)
+        data = [i for i in data if i['filename'].lower() in files or i['filepath'].lower() in files]
+
+    print('Retrieved {0} records'.format(len(data)))
+    print('---------------------')
+        
+    if data:
+        print('\t'.join(columns))
+        for i in data:
+            L = '\t'.join([i[j] for j in columns])
+            print(L)
+            print('--')
+            
+
+
 
 if __name__ == '__main__':
 
@@ -710,6 +762,25 @@ if __name__ == '__main__':
     check_parser.add_argument('-a', '--alias', dest='alias', help='Alias of the file to upload', required=True)
     check_parser.add_argument('-f', '--file', dest='file', help='Path to the file to upload', required=True)
     check_parser.set_defaults(func=check_upload_files)
+
+
+    # view database
+    view_parser = subparsers.add_parser('view', help="View data")
+    view_parser.add_argument('-db', '--database', dest='database', default = '/.mounts/labs/gsiprojects/gsi/Data_Transfer/Release/PROJECTS/EGA/Submission_Tools/EGA_upload_database/EGA_uploads.db', \
+                             help='Path to the EGA submission database. Default is /.mounts/labs/gsiprojects/gsi/Data_Transfer/Release/PROJECTS/EGA/Submission_Tools/EGA_upload_database/EGA_uploads.db')
+    view_parser.add_argument('-t', '--table', dest='table', default = 'ega_uploads', help='Table storing the file information in the database. Default is ega_uploads')
+    view_parser.add_argument('-b', '--boxes', dest='boxes', nargs = '*', help='White space seprated list of EGA submission boxes')
+    view_parser.add_argument('-p', '--projects', dest='projects', nargs = '*', help='White space separated list projects')
+    view_parser.add_argument('-s', '--statuses', dest='statuses', nargs = '*', help='White space separated list of status')
+    view_parser.add_argument('-a', '--aliases', dest='aliases', nargs = '*', help='White space separated list of aliases')
+    view_parser.add_argument('-f', '--files', dest='files', nargs = '*', help='White space separated list of files')
+    view_parser.set_defaults(func=view_data)
+    
+    
+
+
+
+
 
     # get arguments from the command line
     args = parser.parse_args()
