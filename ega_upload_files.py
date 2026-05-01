@@ -726,19 +726,24 @@ def view_data(args):
 
 def update_records(args):
     '''
+    (str, str, str | None, str | None, str | None, str | None, str | None, str, str, str) -> None
     
-    
+    Update a column in the database from old_value to new_value by filtering records 
+    using alias, box, file, status and project
     
 
     Parameters
     ----------
-    args : TYPE
-        DESCRIPTION.
-
-    Returns
-    -------
-    None.
-
+    - database (str): Path to the EGA submission database
+    - table (str): Table storing the file information in the database
+    - box (str | None): EGA submission box
+    - project (str | None): Project name
+    - status (str | None): Status
+    - alias (str | None): Alias
+    - files (str | None): File name
+    - column (str): Name of the column to update
+    - old_value (str): Current value of the column to update
+    - new_value (str): New value of the column to update
     '''
 
 
