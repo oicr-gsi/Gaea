@@ -775,11 +775,20 @@ def update_records(args):
             cur.execute(update_cmd)
             conn.commit()
     
-    ### check that changes have been made by querying the database
-    
-    
-    ### print message
-    
+        ### check that changes have been made by querying the database
+        new_condition = ' WHERE {0} =\"{1}\"'.format(args.column, args.new_value)
+        for i in range(len(L)):
+            if L[i]:
+                new_condition = new_condition + ' AND {0} = \"{1}\"'.format(column_filters[i], L[i])
+        cmd = 'SELECT * FROM {0}'.format(args.table) + new_condition + ';'        
+        data = cur.execute(cmd).fetchall()
+        a = [i[valid_columns.index(args.column)] for i in data]
+        b = list(set(a))
+        if len(b) == 1 and b[0] == args.new_value:
+            print('Success. Updated {0} records with {1} --> {2}'.format(len(a), args.old_value, args.new_value))
+        else:
+            print('Warning. Could not update {0} --> {1}'.format(args.old_value, args.new_value))
+        
     conn.close()
     
 
