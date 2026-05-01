@@ -397,7 +397,7 @@ def encrypt_folder(folder, donor, gsi_age_key, it_age_key, archivedir, qsubdir, 
     '''
     
     
-    encryptcmd = "tar -cvhz {0} | age -r {1} -r {2} > {3}"
+    encryptcmd = "module load ega_archive; tar -cvhz {0} | age -r {1} -r {2} > {3}"
     qsubcmd = "qsub -cwd -b y -P gsi -l h_vmem={0}g,h_rt={1}:0:0 -N {2} -e {3} -o {3} \"bash {4}\""
     # age output: encrypted tarball
     encrypted_file = os.path.join(archivedir, '{0}.tar.gz.age'.format(donor))
@@ -433,7 +433,7 @@ def encrypt_file(file, gsi_age_key, it_age_key, archivedir, qsubdir, logdir, mem
     - runtime (int): Job run time in hours
     '''
     
-    encryptcmd = "age -r {1} -r {2} > {3}"
+    encryptcmd = "module load ega_archive; age -r {1} -r {2} > {3}"
     qsubcmd = "qsub -cwd -b y -P gsi -l h_vmem={0}g,h_rt={1}:0:0 -N {2} -e {3} -o {3} \"{4}\""
     
     filename = os.path.basename(file) 
