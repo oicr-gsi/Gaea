@@ -385,7 +385,7 @@ def encrypt_folder(folder, donor, gsi_age_key, it_age_key, archivedir, qsubdir, 
         
     Parameters
     ----------
-    - folder (str): Direcotry with linked data to data and encrypt
+    - folder (str): Directory with linked data to data and encrypt
     - donor (str): Name of the donor
     - gsi_age_key (str): GSI age public encrytion key
     - it_age_key (str): IT age public encryption key
@@ -397,12 +397,14 @@ def encrypt_folder(folder, donor, gsi_age_key, it_age_key, archivedir, qsubdir, 
     '''
     
     
-    encryptcmd = "module load ega-archive; tar -cvhz {0} | age -r {1} -r {2} > {3}"
+    encryptcmd = "module load ega-archive; tar -cvhz -C {0} {1} | age -r {2} -r {3} > {4}"
     qsubcmd = "qsub -cwd -b y -P gsi -l h_vmem={0}g,h_rt={1}:0:0 -N {2} -e {3} -o {3} \"bash {4}\""
     # age output: encrypted tarball
     encrypted_file = os.path.join(archivedir, '{0}.tar.gz.age'.format(donor))
     # get the encryption command
-    myencryptcmd = encryptcmd.format(folder, gsi_age_key, it_age_key, encrypted_file)
+    parent_folder = os.path.dirname(folder)
+    foldername = os.path.basename(folder)
+    myencryptcmd = encryptcmd.format(parent_folder, foldername, gsi_age_key, it_age_key, encrypted_file)
     # write bash and qsub scripts
     bashscript = os.path.join(qsubdir, '{0}.encrypt.sh'.format(donor))
     with open(bashscript, 'w') as newfile:
