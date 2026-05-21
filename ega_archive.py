@@ -11,6 +11,7 @@ import os
 import gzip
 import sys
 import subprocess
+import time
 
 def is_gzipped(file):
     '''
@@ -134,19 +135,18 @@ def define_workflow_type(workflow):
 
 
 
-def extract_project_data(provenance, project):
+def extract_project_data(provenance, project, valid_donors):
     '''
-    (str, str, list, str | None) -> dict
+    (str, str, list | None) -> dict
   
-    Returns a dictionary with file info extracted from FPR for a given project 
-    and a given workflow if workflow is speccified. 
-            
+    Returns a dictionary with file info extracted from FPR for a given project
+    and given donors if specified
+                
     Parameters
     ----------
     - provenance (str): Path to File Provenance Report
     - project (str): Project name as it appears in File Provenance Report. 
-    - workflow (list): List of workflows used to generate the output files.
-    - prefix (str | None): Prefix used to recover file full paths when File Provevance contains relative paths.
+    - valid_donors (list | None): List of donors to include
     '''
     
     # create a dict {file_swid: {file info}}
@@ -221,6 +221,9 @@ def extract_project_data(provenance, project):
                      'sample_id': [sample_id]}
             
             
+                if valid_donors and donor not in valid_donors:
+                    continue
+            
                 if file_swid not in D:
                     D[file_swid] = d
                 else:
@@ -271,7 +274,8 @@ def write_manifest(data, project, projectdir):
               'tissue_origin',
               'deleted']
 
-    manifest = os.path.join(projectdir, '{0}.MANIFEST.txt'.format(project))
+    current_time = time.strftime('%Y-%m-%d', time.localtime(time.time()))
+    manifest = os.path.join(projectdir, '{0}.MANIFEST.{1}.txt'.format(project, current_time))
     newfile = open(manifest, 'w') 
     newfile.write('\t'.join(header) + '\n')                    
         
@@ -346,7 +350,7 @@ def link_files(data, stagedir):
 
 def organize_data(args):
     '''
-    (str, str, str) -> None
+    (str, str, str, list | None, str | None) -> None
     
     Extract project data from FPR and organize links in the EGA stage directory
     
@@ -355,7 +359,13 @@ def organize_data(args):
     - ega_stage (str): Directory where the links are organized
     - fpr (str): Path to the File Provenance Report
     - project (str): Project of interest
+    - donors (list | None): List of donors
+    - donorfile (str | None): File with list of donors
     '''
+
+    # check options
+    if args.donors and args.donorfile:
+        sys.exit('-do and -df are mutually exclusive')
 
     # create project dir
     projectdir = os.path.join(args.ega_stage, args.project)
@@ -364,8 +374,18 @@ def organize_data(args):
     stagedir = os.path.join(projectdir, 'stage_folders')
     os.makedirs(stagedir, exist_ok=True)
     
+    # make a list of valid donors
+    if args.donors:
+        valid_donors = args.donors
+    elif args.donorfile:
+        infile = open(args.donorfile)
+        valid_donors = infile.read().rstrip().split('\n')
+        infile.close()
+    else:
+        valid_donors = []
+        
     # extract data
-    data = extract_project_data(args.fpr, args.project)
+    data = extract_project_data(args.fpr, args.project, valid_donors)
     print('extracted {0} files for project {1}'.format(len(data), args.project))
     if data:
         # link files if files have been deleted
@@ -492,7 +512,7 @@ def decrypt_file(encrypted_file, age_key, outputdir, qsubdir, logdir, memory, ru
 
 def encrypt_data(args):
     '''
-    (str, str, str, str, str, str, str, int, int) -> None
+    (str, str, str, str, str, str, str, list | None, str | None, int, int) -> None
     
     Encrypt data (single file, single folder or arcive with subfolders)
         
@@ -505,16 +525,19 @@ def encrypt_data(args):
     - archive (str): Path to the directory containing subfolders to with linked donor data to tar and encrypt
     - gsi_age_pub_key (str): Path to the GSI age public key
     - it_age_pub_key (str): Path to the IT age public key
+    - donors (list | None): List of donors
+    - donorfile (str | None): File with list of donors
     - memory (int): Encryption job memory. Default is 20G
     - runtime (in): Encryption job runtime
     '''
     
     # check options
-    
+    if args.donorfile and args.donors:
+        sys.exit('-df and -do are mutually exclusive')
     if args.file:
-        a = [args.directory, args.archive]
+        a = [args.directory, args.archive, args.donors, args.donorfile]
         if any(a):
-            c = ['-d', '-a']
+            c = ['-d', '-a', '-do', '-df']
             err = ','.join([c[i] for i in range(len(c)) if a[i]])
             sys.exit('-f cannot be used with options {0}'.format(err))
     elif args.directory:
@@ -552,10 +575,26 @@ def encrypt_data(args):
     logdir = os.path.join(qsubdir, 'logs')
     os.makedirs(logdir, exist_ok=True)
     
+    
+    # make a list of valid donors
+    if args.donors:
+        valid_donors = args.donors
+    elif args.donorfile:
+        infile = open(args.donorfile)
+        valid_donors = infile.read().rstrip().split('\n')
+        infile.close()
+    else:
+        valid_donors = []
+       
     # archive a single folder
     if args.directory:
         donor = os.path.basename(args.directory)
-        encrypt_folder(args.directory, donor, gsi_age_key, it_age_key, archivedir, qsubdir, logdir, args.memory, args.runtime)
+        # check that donor is valid
+        if valid_donors and donor not in valid_donors:
+            print('donor {0} is not in the provided list of valid donors'.format(donor))
+        else:
+            print('ecrypting data for {0}'.format(donor))
+            encrypt_folder(args.directory, donor, gsi_age_key, it_age_key, archivedir, qsubdir, logdir, args.memory, args.runtime)
     # archive all folders in directory
     elif args.archive:
         # get all the directories in the folder
@@ -563,7 +602,12 @@ def encrypt_data(args):
         for i in L:
             # get the donor name
             donor = os.path.basename(i)
-            encrypt_folder(i, donor, gsi_age_key, it_age_key, archivedir, qsubdir, logdir, args.memory, args.runtime)
+            if valid_donors and donor not in valid_donors:
+                print('donor {0} is not in the provided list of valid donors'.format(donor))
+            else:
+                print('ecrypting data for {0}'.format(donor))
+                encrypt_folder(i, donor, gsi_age_key, it_age_key, archivedir, qsubdir, logdir, args.memory, args.runtime)
+                
     # archive a single file
     elif args.file:
         encrypt_file(args.file, gsi_age_key, it_age_key, archivedir, qsubdir, logdir, args.memory, args.runtime)
@@ -627,6 +671,8 @@ if __name__ == '__main__':
     o_parser.add_argument('-es', '--ega_stage', dest='ega_stage', default = '/.mounts/labs/gsiprojects/gsi/Data_Transfer/Release/EGA_STAGE', help='Directory where the links are organized. Default is /.mounts/labs/gsiprojects/gsi/Data_Transfer/Release/EGA_STAGE')
     o_parser.add_argument('-fpr', '--fpr', dest='fpr', default = '/scratch2/groups/gsi/production/vidarr/vidarr_files_report_latest.tsv.gz', help='Path to File Provenance Report. Default is /scratch2/groups/gsi/production/vidarr/vidarr_files_report_latest.tsv.gz')
     o_parser.add_argument('-p', '--project', dest='project', help='Name of project of interest', required=True)
+    o_parser.add_argument('-do', '--donors', dest='donors', nargs = '*', help='List of donors')
+    o_parser.add_argument('-df', '--donorfile', dest='donorfile', help='File with list of donors')
     o_parser.set_defaults(func=organize_data)
     
     e_parser = subparsers.add_parser('encrypt', help="Encrypt data")
@@ -639,6 +685,8 @@ if __name__ == '__main__':
     e_parser.add_argument('-ik', '--itkey', dest='it_age_pub_key', default = '/.mounts/labs/gsi/secrets/IT_AGE_PUB_KEY', help='Path to the IT age public key. Default is /.mounts/labs/gsi/secrets/IT_AGE_PUB_KEY')
     e_parser.add_argument('-m', '--memory', dest='memory', default = '20', help='Encryption job memory. Default is 20G')
     e_parser.add_argument('-r', '--runtime', dest='runtime', default = '5', help='Encryption job runtime. Default is 5 hours')
+    e_parser.add_argument('-do', '--donors', dest='donors', nargs = '*', help='List of donors')
+    e_parser.add_argument('-df', '--donorfile', dest='donorfile', help='File with list of donors')
     e_parser.set_defaults(func=encrypt_data)
         
     d_parser = subparsers.add_parser('decrypt', help="Decrypt data")
