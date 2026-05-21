@@ -452,7 +452,44 @@ def encrypt_file(file, gsi_age_key, it_age_key, archivedir, qsubdir, logdir, mem
     # launch job 
     subprocess.call(myqsubcmd, shell=True)
 
+
+
+
+def decrypt_file(encrypted_file, age_key, outputdir, qsubdir, logdir, memory, runtime):
+    '''     
+    (str, str, str, str, str, str, int, int) -> None
+        
+    Write and launch jobs to encrypt a single file
+        
+    Parameters
+    ----------
+    - encrypted_file (str): File to decrypt
+    - age_key (str): age decrypting secret key
+    - outputdir (str): Path to the directory where decrypted files are written
+    - qsubdir (str): Directory where qsub script is written
+    - logdir (str): Directory where logs are written
+    - memory (int): Job memory
+    - runtime (int): Job run time in hours
+    '''
     
+    decryptcmd = "module load ega-archive; age --decrypt -i {0} -o {1} {2}"
+    qsubcmd = "qsub -cwd -b y -P gsi -l h_vmem={0}g,h_rt={1}:0:0 -N {2} -e {3} -o {3} \"{4}\""
+    
+    # get outputfile
+    filename = os.path.basename(encrypted_file) 
+    filename = filename.replace('.age', '')
+    decrypted_file = os.path.join(outputdir, filename)
+    # get the encryption command
+    mydecryptcmd = decryptcmd.format(age_key, decrypted_file, encrypted_file)
+    
+    qsubscript = os.path.join(qsubdir, '{0}.decrypt.qsub'.format(filename))
+    myqsubcmd = qsubcmd.format(memory, runtime, '{0}.decrypt'.format(filename), logdir, mydecryptcmd)
+    with open(qsubscript, 'w') as newfile:
+        newfile.write(myqsubcmd)
+    # launch job 
+    subprocess.call(myqsubcmd, shell=True)
+
+
 def encrypt_data(args):
     '''
     (str, str, str, str, str, str, str, int, int) -> None
@@ -531,7 +568,54 @@ def encrypt_data(args):
     elif args.file:
         encrypt_file(args.file, gsi_age_key, it_age_key, archivedir, qsubdir, logdir, args.memory, args.runtime)
 
-   
+
+
+def decrypt_data(args):
+    '''
+    (str, str, str, str, str, str, str, int, int) -> None
+    
+    Decrypt data (single file, single folder or arcive with subfolders)
+        
+    Parameters
+    ----------
+    - project (str): Name of project of interest
+    - ega_stage (str): Directory where the links are organized
+    - file (str): Path to the file to encrypt
+    - directory (str): Path to the directory containing the encrypted tarballs
+    - outputdir (str): Directory where the encrypted tarballs are decrypted
+    - age_key (str): Path to the age decrypting key
+    - memory (int): Encryption job memory. Default is 20G
+    - runtime (in): Encryption job runtime
+    '''
+    
+    # check options
+    if args.file and args.directory:
+        sys.exit('-f and -d are mutually exclusive')
+    # create outputdir
+    os.makedirs(args.outputdir, exist_ok=True)
+    
+    # create project dir
+    projectdir = os.path.join(args.ega_stage, args.project)
+    os.makedirs(projectdir, exist_ok=True)
+    # create qsubs dir
+    qsubdir = os.path.join(projectdir, 'qsubs')
+    os.makedirs(qsubdir, exist_ok=True)
+    # create log dir
+    logdir = os.path.join(qsubdir, 'logs')
+    os.makedirs(logdir, exist_ok=True)
+    
+    if args.file:
+        # decrypt a sigle file
+        decrypt_file(args.file, args.age_key, args.outputdir, qsubdir, logdir, args.memory, args.runtime)
+
+    elif args.directory:
+        # make a list of encrypted files
+        encrypted_files = [os.path.join(args.directory, i) for i in os.listdir(args.directory) if '.age' in i]
+        # decrypt each encrypted file
+        for i in encrypted_files:
+            decrypt_file(i, args.age_key, args.outputdir, qsubdir, logdir, args.memory, args.runtime)
+    
+
    
 if __name__ == '__main__':
 
@@ -556,6 +640,17 @@ if __name__ == '__main__':
     e_parser.add_argument('-m', '--memory', dest='memory', default = '20', help='Encryption job memory. Default is 20G')
     e_parser.add_argument('-r', '--runtime', dest='runtime', default = '5', help='Encryption job runtime. Default is 5 hours')
     e_parser.set_defaults(func=encrypt_data)
+        
+    d_parser = subparsers.add_parser('decrypt', help="Decrypt data")
+    d_parser.add_argument('-p', '--project', dest='project', help='Name of project of interest', required=True)
+    d_parser.add_argument('-es', '--ega_stage', dest='ega_stage', default = '/.mounts/labs/gsiprojects/gsi/Data_Transfer/Release/EGA_STAGE', help='Directory where the links are organized. Default is /.mounts/labs/gsiprojects/gsi/Data_Transfer/Release/EGA_STAGE')
+    d_parser.add_argument('-o', '--outputdir', dest='outputdir', help='Path to the output directory where decrupted files are written', required = True)
+    d_parser.add_argument('-d', '--directory', dest='directory', help='Path to the directory with encrypted files')
+    d_parser.add_argument('-f', '--file', dest='file', help='Path to the encrypted file to decrypt')
+    d_parser.add_argument('-ak', '--agekey', dest='age_key', default = '/.mounts/labs/gsi/secrets/gsi_drachive.age', help='Path to age key. Default is /.mounts/labs/gsi/secrets/gsi_drachive.age')
+    d_parser.add_argument('-m', '--memory', dest='memory', default = '20', help='Decryption job memory. Default is 20G')
+    d_parser.add_argument('-r', '--runtime', dest='runtime', default = '5', help='Decryption job runtime. Default is 5 hours')
+    d_parser.set_defaults(func=decrypt_data)
     
     # get arguments from the command line
     args = parser.parse_args()
