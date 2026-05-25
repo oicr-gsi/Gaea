@@ -12,7 +12,7 @@ import sys
 import subprocess
 import time
 import json
-
+import requests
 
 
 def is_sequencing(workflow):
@@ -409,6 +409,103 @@ def link_files(data, stagedir):
 
 
 
+def ticket_format(d):
+    '''
+    (dict) -> list
+    
+    Returns a list of tickets associated with release
+    
+    Parameters
+    ----------
+    - d (dict): Dictionary extracted from nabu for a specific case
+    '''
+    
+    comment = d['comment']
+    if comment and comment.startswith('G') and '-' in comment:
+        comment = comment.split('-')
+        c = ['-'.join([comment[0], comment[i]]) for i in range(1, len(comment))]
+    else:
+        if comment:
+            c = [d['comment']]
+        else:
+            c = d['comment']
+    
+    return c
+
+
+
+def extract_nabu_signoff(cases, nabu_key_file, nabu='https://nabu.gsi.oicr.on.ca/case/sign-off'):
+    '''
+    (list, str, str) -> dict
+    
+    Returns a dictionary of signoffs for each case in cases
+        
+    Parameters
+    ----------
+    - cases (list): List of case identifiers
+    - nabu_key_file (str): File storing the nabu API key
+    - nabu (str): URL to access the signoffs in Nabu
+    '''
+    
+    infile = open(nabu_key_file)
+    nabu_key = infile.read().rstrip()
+    infile.close()
+    
+    headers = {'accept': 'application/json',
+               'X-API-KEY': nabu_key,}
+    
+    D = {}
+    
+    response = requests.get(nabu, headers=headers)
+    if response.status_code == 200:
+        for d in response.json():
+            case_id = d['caseIdentifier']
+            if case_id in cases:
+                ticket = ticket_format(d)
+                d['comment'] = ticket
+                if case_id not in D:
+                    D[case_id] = {}
+                step = d['signoffStepName']
+                step = ' '.join(list(map(lambda x: x.lower().capitalize(), step.split('_'))))
+                if step in D[case_id]:
+                    D[case_id][step].append(d)
+                else:
+                    D[case_id][step] = [d]
+    return D
+
+
+
+
+def keep_signoffed_cases(cases, nabu_key_file, nabu='https://nabu.gsi.oicr.on.ca/case/sign-off'):
+    '''
+    (list, str, str) -> lisr
+    
+    Returns a list of case identifiers for which release signoff (except EGA) has been completed
+    
+    Parameters
+    ----------
+    - cases (list): List of case identifiers
+    - nabu_key_file (str): File storing the nabu API key
+    - nabu (str): URL to access the signoffs in Nabu
+    '''
+    
+    signoffs = extract_nabu_signoff(cases, nabu_key_file, nabu='https://nabu.gsi.oicr.on.ca/case/sign-off')
+
+    keep = []
+
+    for case_id in signoffs:
+        if case_id in signoffs:
+            if 'Release' in signoffs[case_id]:
+                L = []        
+                for d in signoffs[case_id]['Release']:
+                    if 'fastq' in d['deliverable'].lower() or 'pipeline' in d['deliverable'].lower():
+                        L.append(d['qcPassed'])
+                if all(L):
+                    keep.append(case_id)
+                        
+    return keep
+
+
 def organize_data(args):
     '''
     (str, str, str, list | None, str | None) -> None
@@ -455,12 +552,24 @@ def organize_data(args):
     print('extracted {0} files for {1} cases for project {2}'.format(file_counts, len(data), args.project))
     
     if data:
-        # link files if files have been deleted
-        link_files(data, stagedir)
-        print('linked data to {0}'.format(stagedir))
-        # write manifest with file information
-        write_manifest(data, args.project, projectdir)
-        print('wrote manifest in {0}'.format(projectdir))
+        # check if only cases with release signoff should be kept
+        if args.signoff_only:
+            print('keeping only cases with release signoff')
+            # make a list of cases to keep
+            keep_cases = keep_signoffed_cases(list(data.keys()), args.nabu_key_file, args.nabu)
+            print('cases with release signoff: {0}'.format(len(keep_cases)))
+            print('discarding {0} cases'.format(len(data) - len(keep_cases)))
+            # remove cases without signoff
+            to_remove = [i for i in data if i not in keep_cases]
+            for i in to_remove:
+                del data[i]
+        if data:
+            # link files if files have been deleted
+            link_files(data, stagedir)
+            print('linked data to {0}'.format(stagedir))
+            # write manifest with file information
+            write_manifest(data, args.project, projectdir)
+            print('wrote manifest in {0}'.format(projectdir))
    
     
    
@@ -707,6 +816,9 @@ if __name__ == '__main__':
     o_parser.add_argument('-p', '--project', dest='project', help='Name of project of interest', required=True)
     o_parser.add_argument('-c', '--cases', dest='cases', nargs = '*', help='List of cases')
     o_parser.add_argument('-cf', '--casefile', dest='casefile', help='File with list of cases')
+    o_parser.add_argument('--release_signedoff', dest='signoff_only', action='store_true', Help='Keep only cases with complete release signoff')
+    o_parser.add_argument('-nabu', '--nabu', dest='nabu', default='https://nabu.gsi.oicr.on.ca/case/sign-off', Help='Nabu case signoff endpoint')
+    o_parser.add_argument('-nk', '--nabu_key', dest='nabu_key_file', default='/.mounts/labs/gsi/secrets/nabu-prod_qc-gate-etl_api-key', Help='Path to the nabu key file. Default is /.mounts/labs/gsi/secrets/nabu-prod_qc-gate-etl_api-key')
     o_parser.set_defaults(func=organize_data)
     
     e_parser = subparsers.add_parser('encrypt', help="Encrypt data")
