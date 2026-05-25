@@ -816,9 +816,9 @@ if __name__ == '__main__':
     o_parser.add_argument('-p', '--project', dest='project', help='Name of project of interest', required=True)
     o_parser.add_argument('-c', '--cases', dest='cases', nargs = '*', help='List of cases')
     o_parser.add_argument('-cf', '--casefile', dest='casefile', help='File with list of cases')
-    o_parser.add_argument('--release_signedoff', dest='signoff_only', action='store_true', Help='Keep only cases with complete release signoff')
+    o_parser.add_argument('--release_signedoff', dest='signoff_only', action='store_true', help='Keep only cases with complete release signoff')
     o_parser.add_argument('-nabu', '--nabu', dest='nabu', default='https://nabu.gsi.oicr.on.ca/case/sign-off', help='Nabu case signoff endpoint')
-    o_parser.add_argument('-nk', '--nabu_key', dest='nabu_key_file', default='/.mounts/labs/gsi/secrets/nabu-prod_qc-gate-etl_api-key', Help='Path to the nabu key file. Default is /.mounts/labs/gsi/secrets/nabu-prod_qc-gate-etl_api-key')
+    o_parser.add_argument('-nk', '--nabu_key', dest='nabu_key_file', default='/.mounts/labs/gsi/secrets/nabu-prod_case-etl_api-key', help='Path to the nabu key file. Default is /.mounts/labs/gsi/secrets/nabu-prod_qc-gate-etl_api-key')
     o_parser.set_defaults(func=organize_data)
     
     e_parser = subparsers.add_parser('encrypt', help="Encrypt data")
