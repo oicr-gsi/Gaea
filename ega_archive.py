@@ -59,7 +59,7 @@ def is_qc(workflow):
     return 'qc' in workflow.lower() or 'callability' in workflow or \
         'metrics' in workflow.lower() or 'contamination' in workflow.lower() or \
         'collector' in workflow.lower() or 'bcl2barcode' in workflow.lower() or \
-        'tmbanalysis' in workflow.lower()
+        'tmbanalysis' in workflow.lower() or 'fingerprint' in workflow.lower()
     
 
 def define_workflow_type(workflow):
@@ -165,16 +165,20 @@ def extract_file_info(case_data):
             version = d['wfv']
             for k in files:
                 file = k['path']
+                # make sure the file exists
+                if os.path.isfile(file):
+                    deleted = 'NO'
+                else:
+                    deleted = 'YES'
                 md5sum = k['md5']
                 accession = k['accession']
                 file_attributes = json.loads(k['file_attributes'])
-            
                 assert file not in D
                 D[file] = {'lims': lims, 'workflow': workflow, 'wfrun_id': wfrun_id,
                            'version': version, 'md5sum': md5sum, 'accession': accession,
                            'attributes': file_attributes, 'case_id': case_data['case'],
-                           'project': projects, 'workflow_type': workflow_type}
-            
+                           'project': projects, 'workflow_type': workflow_type, 'deleted': deleted}
+                
     return D                   
 
 
@@ -324,7 +328,8 @@ def write_manifest(data, project, projectdir):
               'library',
               'library_source',
               'tissue_type',
-              'tissue_origin']
+              'tissue_origin',
+              'deleted']
 
     current_time = time.strftime('%Y-%m-%d', time.localtime(time.time()))
     manifest = os.path.join(projectdir, '{0}.MANIFEST.{1}.txt'.format(project, current_time))
@@ -362,7 +367,8 @@ def write_manifest(data, project, projectdir):
                  library,
                  library_source,
                  tissue_type,
-                 tissue_origin]
+                 tissue_origin,
+                 data[case_id][file]['deleted']]
                  
                 
             newfile.write('\t'.join(L) + '\n')
@@ -389,23 +395,26 @@ def link_files(data, stagedir):
     
     for case_id in data:
         for file in data[case_id]:
-            if ' ' in case_id:
-                case_id = case_id.replace(' ', '_')
-            wfrunid = data[case_id][file]['wfrun_id']
-            workflow_type = data[case_id][file]['workflow_type']
-            # create donor directory
-            casedir = os.path.join(stagedir, case_id)
-            os.makedirs(casedir, exist_ok=True)
-            # organize data by fastq, call ready and analysis
-            datatypedir = os.path.join(casedir, workflow_type)
-            os.makedirs(datatypedir, exist_ok=True)
-            wfrundir = os.path.join(datatypedir, wfrunid)
-            os.makedirs(wfrundir, exist_ok=True)
-            # create link
-            filename = os.path.basename(file)
-            link = os.path.join(wfrundir, filename)
-            if os.path.isfile(link) == False:
-                os.symlink(file, link)
+            if data[case_id][file]['deleted'] == 'NO':
+                assert os.path.isfile(file)
+                if ' ' in case_id:
+                    case_id = case_id.replace(' ', '_')
+                wfrunid = data[case_id][file]['wfrun_id']
+                workflow_type = data[case_id][file]['workflow_type']
+                # create donor directory
+                casedir = os.path.join(stagedir, case_id)
+                os.makedirs(casedir, exist_ok=True)
+                # organize data by fastq, call ready and analysis
+                datatypedir = os.path.join(casedir, workflow_type)
+                os.makedirs(datatypedir, exist_ok=True)
+                # keep only the alphanumerical string of the workflow run id
+                wfrundir = os.path.join(datatypedir, os.path.basename(wfrunid))
+                os.makedirs(wfrundir, exist_ok=True)
+                # create link
+                filename = os.path.basename(file)
+                link = os.path.join(wfrundir, filename)
+                if os.path.isfile(link) == False:
+                    os.symlink(file, link)
 
 
 
