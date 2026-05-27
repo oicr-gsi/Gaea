@@ -66,7 +66,7 @@ def define_workflow_type(workflow):
     '''
     (str) -> str
     
-    Returns the category in which the workflow needs to be archived (analysis, call_ready or fastq)
+    Returns the category in which the workflow needs to be archived (qc, analysis, callready or fastq)
     
     Parameters
     ----------
@@ -76,7 +76,7 @@ def define_workflow_type(workflow):
     if is_sequencing(workflow):
         workflow_type = 'fastq'
     elif is_call_ready(workflow):
-        workflow_type = 'call_ready'
+        workflow_type = 'callready'
     elif is_qc(workflow):
         workflow_type = 'qc'
     else:
@@ -138,15 +138,16 @@ def clean_up_provenance(provenance_data):
 
 
 
-def extract_file_info(case_data):
+def extract_file_info(case_data, datatype):
     '''
-    (dict) -> dict
+    (dict, list) -> dict
     
     Returns a dictionary with file information for each file of a case
     
     Parameters
     ----------
     - case_data (dict): Dictionary with case production data
+    - datatype (list): List of data to include. Choices include fastq, callready, analysis
     '''
 
     D = {}
@@ -159,8 +160,8 @@ def extract_file_info(case_data):
         workflow = d['wf']
         # identify the type of workflow (qc, fastq, call ready or analysis)
         workflow_type = define_workflow_type(workflow)
-        # do not record qc workflow
-        if workflow_type != 'qc':
+        # check datatype to include
+        if workflow_type in datatype:
             wfrun_id = d['wfrunid']
             version = d['wfv']
             for k in files:
@@ -255,9 +256,9 @@ def add_sample_info(file_info, sample_info):
  
 
 
-def extract_project_data(provenance_data_file, project, valid_cases):
+def extract_project_data(provenance_data_file, project, datatype, valid_cases):
     '''
-    (str, str, list | None) -> dict
+    (str, str, list, list | None) -> dict
   
     Returns a dictionary with file info extracted from the provenance_reporter json from FPR for a given project
     and given donors if specified
@@ -266,6 +267,7 @@ def extract_project_data(provenance_data_file, project, valid_cases):
     ----------
     - provenance (str): Path to File Provenance Report
     - project (str): Project name as it appears in File Provenance Report. 
+    - datatype (list): List of data to include. Choices include fastq, callready, analysis
     - valid_cases (list | None): List of cases to include
     '''
 
@@ -289,7 +291,7 @@ def extract_project_data(provenance_data_file, project, valid_cases):
                 print('{0} is not in the list of provided cases')
             else:
                 # extract file info, sample info and map samples to files
-                file_info = extract_file_info(case_data)
+                file_info = extract_file_info(case_data, datatype)
                 sample_info = extract_sample_info(case_data)
                 file_info = add_sample_info(file_info, sample_info)
                 # update dict 
@@ -524,10 +526,15 @@ def organize_data(args):
     Parameters
     ----------
     - ega_stage (str): Directory where the links are organized
-    - fpr (str): Path to the File Provenance Report
+    - provenance (str): Path to the provenance_reporter.json
     - project (str): Project of interest
     - cases (list | None): List of cases
     - casefile (str | None): File with list of cases
+    - signoff_only (bool): Keep only cases with complete release signoff if True
+    - nabu (str): Nabu case signoff endpoint
+    - nabu_key_file (str): Path to the nabu key file
+    - datatype (list | None): Restrict the data to sequences, analysis and/or call ready bams.
+                              Choices are: 'fastqs' and/or 'callready' and/or 'analysis'
     '''
 
     # check options
@@ -552,7 +559,15 @@ def organize_data(args):
         valid_cases = []
         
     # extract data
-    data = extract_project_data(args.provenance, args.project, valid_cases)
+    if args.datatype:
+        # restrict the data to the type of workflows included (fastq, analysis, callready)
+        data_type = args.datatype
+    else:
+        # include all data
+        data_type = ['fastq', 'analysis', 'callready']
+    print('Includes {0} data'.format(', '.join(data_type)))    
+     
+    data = extract_project_data(args.provenance, args.project, data_type, valid_cases)
     # count files
     file_counts = []
     for case_id in data:
@@ -828,6 +843,7 @@ if __name__ == '__main__':
     o_parser.add_argument('--release_signedoff', dest='signoff_only', action='store_true', help='Keep only cases with complete release signoff')
     o_parser.add_argument('-nabu', '--nabu', dest='nabu', default='https://nabu.gsi.oicr.on.ca/case/sign-off', help='Nabu case signoff endpoint')
     o_parser.add_argument('-nk', '--nabu_key', dest='nabu_key_file', default='/.mounts/labs/gsi/secrets/nabu-prod_case-etl_api-key', help='Path to the nabu key file. Default is /.mounts/labs/gsi/secrets/nabu-prod_qc-gate-etl_api-key')
+    o_parser.add_argument('-dt', '--data_type', dest='datatype', nargs= '*', choices = ['fastq', 'callready', 'analysis'], help='Restrict the data to sequences, analysis and/or call ready bams')
     o_parser.set_defaults(func=organize_data)
     
     e_parser = subparsers.add_parser('encrypt', help="Encrypt data")
