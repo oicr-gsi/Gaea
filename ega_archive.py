@@ -724,7 +724,7 @@ def encrypt_data(args):
     if args.casefile and args.cases:
         sys.exit('-cf and -c are mutually exclusive')
     if args.file:
-        a = [args.directory, args.archive, args.donors, args.donorfile]
+        a = [args.directory, args.archive, args.cases, args.casefile]
         if any(a):
             c = ['-d', '-a', '-c', '-cf']
             err = ','.join([c[i] for i in range(len(c)) if a[i]])
@@ -768,7 +768,7 @@ def encrypt_data(args):
     # make a list of valid donors
     if args.cases:
         valid_cases = args.cases
-    elif args.donorfile:
+    elif args.casefile:
         infile = open(args.casefile)
         valid_cases = infile.read().rstrip().split('\n')
         infile.close()
