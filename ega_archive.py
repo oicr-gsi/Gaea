@@ -416,7 +416,7 @@ def extract_project_data_from_fpr(provenance, project, datatype, valid_donors, s
                 if subproject:
                     if subproject == 'nosubproject' and sub_project:
                         continue
-                    elif subproject and subproject != sub_project:
+                    elif subproject != 'nosubproject' and subproject != sub_project:
                         continue
 
                 # skip data if donor is not valid 
