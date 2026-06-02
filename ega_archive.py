@@ -13,6 +13,7 @@ import subprocess
 import time
 import json
 import requests
+import gzip
 
 
 def is_sequencing(workflow):
@@ -256,7 +257,193 @@ def add_sample_info(file_info, sample_info):
  
 
 
-def extract_project_data(provenance_data_file, project, datatype, valid_cases):
+def is_gzipped(file):
+    '''
+    (str) -> bool
+
+    Return True if file is gzipped
+
+    Parameters
+    ----------
+    - file (str): Path to file
+    '''
+
+    # open file in rb mode
+    infile = open(file, 'rb')
+    header = infile.readline()
+    infile.close()
+    if header.startswith(b'\x1f\x8b\x08'):
+        return True
+    else:
+        return False
+
+
+def get_project_records(project, provenance):
+    '''
+    (str, str) -> list
+    
+    Returns a list with all the records from the File Provenance Report for a given project.
+    Each individual record in the list is a list of fields    
+    
+    Parameters
+    ----------
+    - project (str): Name of a project or run as it appears in File Provenance Report
+    - provenance (str): Path to File Provenance Report.
+    '''
+
+    # get the records for a single project
+    records = []
+    # open provenance for reading. allow gzipped file or not
+    if is_gzipped(provenance):
+        infile = gzip.open(provenance, 'rt', errors='ignore')
+    else:
+        infile = open(provenance)
+    for line in infile:
+        if project in line:
+            line = line.rstrip().split('\t')
+            if project == line[1]:
+                records.append(line)
+    infile.close()
+    return records
+
+
+
+def extract_project_data_from_fpr(provenance, project, datatype, valid_donors, subproject):
+    '''
+    (str, str, list, str | None, str | None) -> dict
+      
+    Returns a dictionary with file info extracted from FPR for a given project 
+    and a given workflow if workflow is speccified. 
+            
+    Returns a dictionary with file info extracted from FPR for a given project
+    and given donors if specified
+                
+    Parameters
+    ----------
+    - provenance (str): Path to File Provenance Report
+    - project (str): Project name as it appears in File Provenance Report. 
+    - datatype (list): List of data to include. Choices include fastq, callready, analysis
+    - valid_donors (list | None): List of donors to include
+    - subproject (str | None): Name of the subproject within project
+    '''
+
+    # create a dict {file_swid: {file info}}
+    D  = {}
+
+    # get all the records for a single project
+    records = get_project_records(project, provenance)
+
+    # parse the records and get all the files for a given project
+    for i in records:
+        # keep records for project
+        if project == i[1]:
+            workflow = i[30]
+            # get the workflow type
+            workflow_type = define_workflow_type(workflow)
+            # check if workflow type is included
+            if workflow_type in datatype:
+                # check if file is deleted
+                deleted = i[45]
+                # get file path
+                file_path = i[46]
+                # get md5sum
+                md5 = i[47]
+                # get file name
+                file_name = os.path.basename(file_path)
+                # get file swid
+                file_swid = i[44]
+                # get workdlow swid
+                workflow_run_id = i[36]
+                # get donor
+                donor = i[7]
+                # get library aliases
+                library = i[13]
+                # get lims key
+                limskey = i[56]
+                # get platform
+                platform = i[22]
+                geo = i[12]
+                if geo:
+                    geo = {k.split('=')[0]:k.split('=')[1] for k in geo.split(';')}
+                else:
+                    geo = {}
+                for j in ['geo_external_name', 'geo_group_id', 'geo_group_id_description',
+                          'geo_targeted_resequencing', 'geo_library_source_template_type',
+                          'geo_tissue_type', 'geo_tissue_origin']:
+                    if j not in geo:
+                        geo[j] = 'NA'
+                    if j == 'geo_group_id':
+                        # removes misannotations
+                        geo[j] = geo[j].replace('&2011-04-19', '').replace('2011-04-19&', '')
+                # get subproject if it exists
+                sample_attributes = i[17]
+                if sample_attributes:
+                    sample_attributes = {k.split('=')[0]:k.split('=')[1] for k in sample_attributes.split(';')}
+                else:
+                    sample_attributes = {}
+
+                sample_id = donor + '_' + geo['geo_tissue_origin']+ '_' + geo['geo_tissue_type'] + '_' + geo['geo_library_source_template_type'] + '_' + geo['geo_group_id']
+
+                d = {'workflow': workflow,
+                     'file_path': file_path,
+                     'deleted': deleted,
+                     'file_name': file_name,
+                     'workflow_type': workflow_type,
+                     'donor': donor,
+                     'md5': md5,
+                     'platform': platform,
+                     'workflow_run_id': workflow_run_id,
+                     'file_swid': file_swid,
+                     'external_name': geo['geo_external_name'],
+                     'library_source': [geo['geo_library_source_template_type']],
+                     'limskey': [limskey],
+                     'library': [library],
+                     'tissue_type': [geo['geo_tissue_type']],
+                     'tissue_origin': [geo['geo_tissue_origin']],
+                     'groupdesc': [geo['geo_group_id_description']],
+                     'groupid': [geo['geo_group_id']],
+                     'sample_id': [sample_id]}
+
+
+                # skip data not in subproject if subproject is specified
+                if 'subproject' in geo:
+                    sub_project = geo['subproject']
+                elif 'subproject' in sample_attributes:
+                    sub_project = sample_attributes['subproject']
+                else:
+                    sub_project = ''
+                
+                if subproject:
+                    if subproject == 'nosubproject' and sub_project:
+                        continue
+                    elif subproject != 'nosubproject' and subproject != sub_project:
+                        continue
+
+                # skip data if donor is not valid 
+                if valid_donors and donor not in valid_donors:
+                    continue
+            
+                if file_swid not in D:
+                    D[file_swid] = d
+                else:
+                    assert D[file_swid]['file_path'] == file_path
+                    assert D[file_swid]['external_name'] == geo['geo_external_name']
+                    assert D[file_swid]['donor'] == donor
+                    D[file_swid]['sample_id'].append(sample_id)
+                    #D[file_swid]['donor'].append(donor)
+                    D[file_swid]['limskey'].append(limskey)
+                    D[file_swid]['library'].append(library)
+                    D[file_swid]['tissue_type'].append(geo['geo_tissue_type'])
+                    D[file_swid]['tissue_origin'].append(geo['geo_tissue_origin'])
+                    D[file_swid]['library_source'].append(geo['geo_library_source_template_type'])
+                    D[file_swid]['groupdesc'].append(geo['geo_group_id_description'])
+                    D[file_swid]['groupid'].append(geo['geo_group_id'])
+
+
+    return D    
+
+
+def extract_project_data_from_reporter(provenance_data_file, project, datatype, valid_cases):
     '''
     (str, str, list, list | None) -> dict
   
@@ -270,7 +457,6 @@ def extract_project_data(provenance_data_file, project, datatype, valid_cases):
     - datatype (list): List of data to include. Choices include fastq, callready, analysis
     - valid_cases (list | None): List of cases to include
     '''
-
 
     # load data from file
     provenance_data = load_data(provenance_data_file)
@@ -300,9 +486,95 @@ def extract_project_data(provenance_data_file, project, datatype, valid_cases):
                     D[case_id] = file_info
                 
     return D                  
+
+
+def write_manifest_from_fpr(data, project, projectdir, subproject):
+    '''
+    (dict, str, str, str | None) -> None
     
+    Parameters
+    ----------
+    - data (dict): Dictionary with file information for a given project extracted from FPR
+    - project (str): Name of project oif interest
+    - projectdir (str): Project directory where data is organized
+    - subproject (str | None): Name of subproject within project
+    '''
+
+    header = ['project',
+              'subproject',
+              'workflow_run_id',
+              'workflow',
+              'case',
+              'donor',
+              'file_path',
+              'file_name',
+              'file_swid',
+              'md5',
+              'platform',
+              'external_name',
+              'sample_id',
+              'limskey',
+              'groupid',
+              'groupdesc',
+              'library',
+              'library_source',
+              'tissue_type',
+              'tissue_origin',
+              'deleted']
+
+
+    current_time = time.strftime('%Y-%m-%d', time.localtime(time.time()))
+
+    if subproject:
+        outputfile =  '{0}.{1}.MANIFEST.{2}.txt'.format(project, subproject, current_time)
+        finaldir = os.path.join(projectdir, subproject)
+    else:
+        outputfile = '{0}.MANIFEST.{1}.txt'.format(project, current_time)
+        finaldir = projectdir
+    
+    manifest = os.path.join(finaldir, outputfile)
+    newfile = open(manifest, 'w') 
+    newfile.write('\t'.join(header) + '\n')                    
+
+    for file_swid in data:
+        L = [project,
+             data[file_swid]['workflow_run_id'],
+             data[file_swid]['workflow'],
+             'NA',
+             data[file_swid]['donor'],
+             data[file_swid]['file_path'],
+             data[file_swid]['file_name'],
+             data[file_swid]['file_swid'],
+             data[file_swid]['md5'],
+             data[file_swid]['platform'],
+             data[file_swid]['external_name'],
+             ';'.join(sorted(list(set(data[file_swid]['sample_id'])))),
+             ';'.join(sorted(list(set(data[file_swid]['limskey'])))),
+             ';'.join(sorted(list(set(data[file_swid]['groupid'])))),
+             ';'.join(sorted(list(set(data[file_swid]['groupdesc'])))),
+             ';'.join(sorted(list(set(data[file_swid]['library'])))),
+             ';'.join(sorted(list(set(data[file_swid]['library_source'])))),
+             ';'.join(sorted(list(set(data[file_swid]['tissue_type'])))),
+             ';'.join(sorted(list(set(data[file_swid]['tissue_origin']))))]
+
+        if subproject:
+            L.insert(1, subproject)
+        else:
+            L.insert(1, 'NA')
+
+        if 'deleted' in data[file_swid]['deleted']:
+            L.append(data[file_swid]['deleted'])
+        elif os.path.isfile(data[file_swid]['file_path']):
+            L.append('NO')
+        else:
+            L.append('YES')
+
+        newfile.write('\t'.join(L) + '\n')
+
+    newfile.close()
+
        
-def write_manifest(data, project, projectdir):
+def write_manifest_from_reporter(data, project, projectdir):
     '''
     (dict, str, str) -> None
     
@@ -313,7 +585,9 @@ def write_manifest(data, project, projectdir):
     - projectdir (str): Project directory where data is organized
     '''
 
-    header = ['workflow_run_id',
+    header = ['project',
+              'subproject',
+              'workflow_run_id',
               'workflow',
               'case',
               'donor',
@@ -352,7 +626,9 @@ def write_manifest(data, project, projectdir):
             tissue_type = ';'.join(sorted(list(set([i['tissue_type'] for i in data[case_id][file]['samples']]))))
             tissue_origin = ';'.join(sorted(list(set([i['tissue_origin'] for i in data[case_id][file]['samples']]))))
                
-            L = [data[case_id][file]['wfrun_id'],
+            L = [project,
+                 'NA',
+                 data[case_id][file]['wfrun_id'],
                  data[case_id][file]['workflow'],
                  case_id,
                  donor,
@@ -378,8 +654,46 @@ def write_manifest(data, project, projectdir):
     newfile.close()    
     
     
+    
+    
+def link_files_from_fpr(data, stagedir):
+    '''
+    (dict, str) -> None
+    
+    Link files of a given project in a specific data structure:
+                
+        donor --|
+                | datatype --|
+                             | workflow_id -- |
+                                              | files
+    Parameters
+    ----------
+    - data (dict): Dictionary with file information for a given project extracted from FPR
+    - stagedir (str): Directory where data is organized
+    '''
 
-def link_files(data, stagedir):
+    for file_swid in data:
+        # check if file is deleted 
+        file = data[file_swid]['file_path']
+        if os.path.isfile(file):
+            donor = data[file_swid]['donor']
+            wfrunid = data[file_swid]['workflow_run_id']
+            workflow_type = data[file_swid]['workflow_type']
+            # create donor directory
+            donordir = os.path.join(stagedir, donor)
+            os.makedirs(donordir, exist_ok=True)
+            # organize data by fastq, call ready and analysis
+            datatypedir = os.path.join(donordir, workflow_type)
+            os.makedirs(datatypedir, exist_ok=True)
+            wfrundir = os.path.join(datatypedir, wfrunid)
+            os.makedirs(wfrundir, exist_ok=True)
+            # create link
+            filename = data[file_swid]['file_name']
+            link = os.path.join(wfrundir, filename)
+            if os.path.isfile(link) == False:
+                os.symlink(file, link)
+    
+def link_files_from_reporter(data, stagedir):
     '''
     (dict, str) -> None
     
@@ -517,7 +831,8 @@ def keep_signoffed_cases(cases, nabu_key_file, nabu='https://nabu.gsi.oicr.on.ca
     return keep
 
 
-def organize_data(args):
+
+def organize_data_by_case(ega_stage, project, provenance, signoff_only, nabu, nabu_key_file, cases = None, casefile = None, datatype = None):
     '''
     (str, str, str, list | None, str | None) -> None
     
@@ -526,61 +841,61 @@ def organize_data(args):
     Parameters
     ----------
     - ega_stage (str): Directory where the links are organized
-    - provenance (str): Path to the provenance_reporter.json
     - project (str): Project of interest
-    - cases (list | None): List of cases
-    - casefile (str | None): File with list of cases
+    - provenance (str): Path to the provenance_reporter.json
     - signoff_only (bool): Keep only cases with complete release signoff if True
     - nabu (str): Nabu case signoff endpoint
     - nabu_key_file (str): Path to the nabu key file
+    - cases (list | None): List of cases
+    - casefile (str | None): File with list of cases
     - datatype (list | None): Restrict the data to sequences, analysis and/or call ready bams.
                               Choices are: 'fastqs' and/or 'callready' and/or 'analysis'
     '''
 
     # check options
-    if args.cases and args.casefile:
+    if cases and casefile:
         sys.exit('-c and -cf are mutually exclusive')
 
     # create project dir
-    projectdir = os.path.join(args.ega_stage, args.project)
+    projectdir = os.path.join(ega_stage, project)
     os.makedirs(projectdir, exist_ok=True)
     # create directory where to link the files
     stagedir = os.path.join(projectdir, 'stage_folders')
     os.makedirs(stagedir, exist_ok=True)
     
     # make a list of valid cases
-    if args.cases:
-        valid_cases = args.cases
-    elif args.casefile:
-        infile = open(args.casefile)
+    if cases:
+        valid_cases = cases
+    elif casefile:
+        infile = open(casefile)
         valid_cases = infile.read().rstrip().split('\n')
         infile.close()
     else:
         valid_cases = []
         
     # extract data
-    if args.datatype:
+    if datatype:
         # restrict the data to the type of workflows included (fastq, analysis, callready)
-        data_type = args.datatype
+        data_type = datatype
     else:
         # include all data
         data_type = ['fastq', 'analysis', 'callready']
     print('Includes {0} data'.format(', '.join(data_type)))    
      
-    data = extract_project_data(args.provenance, args.project, data_type, valid_cases)
+    data = extract_project_data_from_reporter(provenance, project, data_type, valid_cases)
     # count files
     file_counts = []
     for case_id in data:
         file_counts.extend(list(data[case_id].keys()))
     file_counts = len(list(set(file_counts)))
-    print('extracted {0} files for {1} cases for project {2}'.format(file_counts, len(data), args.project))
+    print('extracted {0} files for {1} cases for project {2}'.format(file_counts, len(data), project))
     
     if data:
         # check if only cases with release signoff should be kept
-        if args.signoff_only:
+        if signoff_only:
             print('keeping only cases with release signoff')
             # make a list of cases to keep
-            keep_cases = keep_signoffed_cases(list(data.keys()), args.nabu_key_file, args.nabu)
+            keep_cases = keep_signoffed_cases(list(data.keys()), nabu_key_file, nabu)
             print('cases with release signoff: {0}'.format(len(keep_cases)))
             print('discarding {0} cases'.format(len(data) - len(keep_cases)))
             # remove cases without signoff
@@ -589,13 +904,81 @@ def organize_data(args):
                 del data[i]
         if data:
             # link files if files have been deleted
-            link_files(data, stagedir)
+            link_files_from_reporter(data, stagedir)
             print('linked data to {0}'.format(stagedir))
             # write manifest with file information
-            write_manifest(data, args.project, projectdir)
+            write_manifest_from_reporter(data, project, projectdir)
             print('wrote manifest in {0}'.format(projectdir))
    
+
+
+def organize_data_by_donor(ega_stage, project, fpr, cases = None, casefile = None, datatype = None, subproject = None):
+    '''
+    (str, str, str, list | None, str | None, str | None, str | None) -> None
     
+    Extract project data from FPR and organize links in the EGA stage directory
+    
+    Parameters
+    ----------
+    - ega_stage (str): Directory where the links are organized
+    - project (str): Project of interest
+    - fpr (str): Path to the File Provenance Report
+    - cases (list | None): List of donors
+    - casefile (str | None): File with list of donors
+    - datatype (list | None): Restrict the data to sequences, analysis and/or call ready bams.
+                              Choices are: 'fastqs' and/or 'callready' and/or 'analysis'
+    - subproject(str): Name of the subproject within project
+    '''
+
+    # check options
+    if cases and casefile:
+        sys.exit('-c and -cf are mutually exclusive')
+
+    # create project dir
+    projectdir = os.path.join(ega_stage, project)
+    os.makedirs(projectdir, exist_ok=True)
+    if subproject:
+        subprojectdir = os.path.join(projectdir, subproject)
+        stagedir = os.path.join(subprojectdir, 'stage_folders')
+    else:
+        # create directory where to link the files
+        stagedir = os.path.join(projectdir, 'stage_folders')
+    os.makedirs(stagedir, exist_ok=True)
+
+    # make a list of valid donors
+    if cases:
+        valid_donors = cases
+    elif casefile:
+        infile = open(casefile)
+        valid_donors = infile.read().rstrip().split('\n')
+        infile.close()
+    else:
+        valid_donors = []
+        
+    # extract data
+    if datatype:
+        # restrict the data to the type of workflows included (fastq, analysis, callready)
+        data_type = datatype
+    else:
+        # include all data
+        data_type = ['fastq', 'analysis', 'callready']
+    print('Includes {0} data'.format(', '.join(data_type)))        
+        
+    # extract data
+    data = extract_project_data_from_fpr(fpr, project, data_type, valid_donors, subproject)
+    # count donors
+    donor_counts = len(list(set([data[i]['donor'] for i in data])))
+    print('extracted {0} files for {1} donors for project {2}'.format(len(data), donor_counts, project))
+    
+    if data:
+        # link files if files have been deleted
+        link_files_from_fpr(data, stagedir)
+        print('linked data to {0}'.format(stagedir))
+        # write manifest with file information
+        write_manifest_from_fpr(data, project, projectdir, subproject)
+        print('wrote manifest in {0}'.format(projectdir))
+
+   
    
 def encrypt_folder(folder, case_id, gsi_age_key, it_age_key, archivedir, qsubdir, logdir, memory, runtime):
     '''
@@ -699,6 +1082,40 @@ def decrypt_file(encrypted_file, age_key, outputdir):
     subprocess.call(mydecryptcmd, shell=True)
 
 
+
+
+def organize_data(args):
+    '''
+    (str, str, str, list | None, str | None) -> None
+    
+    Extract project data from FPR and organize links in the EGA stage directory
+    
+    Parameters
+    ----------
+    - ega_stage (str): Directory where the links are organized
+    - project (str): Project of interest
+    - provenance (str): Path to the provenance_reporter.json
+    - fpr (str): Path to File Provenance Report
+    - cases (list | None): List of cases or donors
+    - casefile (str | None): File with list of cases or donors
+    - nabu (str): Nabu case signoff endpoint
+    - nabu_key_file (str): Path to the nabu key file
+    - signoff_only (bool): Keep only cases with complete release signoff if True
+    - datatype (list | None): Restrict the data to sequences, analysis and/or call ready bams.
+                              Choices are: 'fastqs' and/or 'callready' and/or 'analysis'
+    - by (str): Organize data by case (from provenance_reporter.json) or by donor (from FPR)
+    '''
+       
+    if args.by == 'case':
+        print('organizing data by case')
+        print('pulling data from {0}'.format(args.provenance))
+        organize_data_by_case(args.ega_stage, args.project, args.provenance, args.signoff_only, args.nabu, args.nabu_key_file, cases = args.cases, casefile = args.casefile, datatype = args.datatype)
+    elif args.by == 'donor':
+        print('organizing data by donor')
+        print('pulling data from {0}'.format(args.fpr))
+        organize_data_by_donor(args.ega_stage, args.project, args.fpr, cases = args.cases, casefile = args.casefile, datatype = args.datatype, subproject = args.subproject)
+
+
 def encrypt_data(args):
     '''
     (str, str, str, str, str, str, str, list | None, str | None, int, int) -> None
@@ -754,11 +1171,18 @@ def encrypt_data(args):
     projectdir = os.path.join(args.ega_stage, args.project)
     os.makedirs(projectdir, exist_ok=True)
     # create directory for encrypted data
-    archivedir = os.path.join(projectdir, 'encrypted')
+    if args.subproject:
+        subprojectdir = os.path.join(projectdir, args.subproject)
+        archivedir = os.path.join(subprojectdir, 'encrypted')
+    else:
+        archivedir = os.path.join(projectdir, 'encrypted')
     os.makedirs(archivedir, exist_ok=True)
     
-    # create qsubs dir
-    qsubdir = os.path.join(projectdir, 'qsubs')
+    # create qsubs and logs dirs
+    if args.subproject:
+        qsubdir = os.path.join(subprojectdir, 'qsubs')
+    else:
+        qsubdir = os.path.join(projectdir, 'qsubs')
     os.makedirs(qsubdir, exist_ok=True)
     # create log dir
     logdir = os.path.join(qsubdir, 'logs')
@@ -836,13 +1260,16 @@ if __name__ == '__main__':
        
     o_parser = subparsers.add_parser('link', help="Link files to release")
     o_parser.add_argument('-es', '--ega_stage', dest='ega_stage', default = '/.mounts/labs/gsiprojects/gsi/Data_Transfer/Release/EGA_STAGE', help='Directory where the links are organized. Default is /.mounts/labs/gsiprojects/gsi/Data_Transfer/Release/EGA_STAGE')
-    o_parser.add_argument('-pv', '--provenance', dest='provenance', default='/scratch2/groups/gsi/production/pr_refill_v2/provenance_reporter.json', help='Path to the json with production data. Default is /scratch2/groups/gsi/production/pr_refill_v2/provenance_reporter.json')
     o_parser.add_argument('-p', '--project', dest='project', help='Name of project of interest', required=True)
+    o_parser.add_argument('-s', '--subproject', dest='subproject', help='Sub-project name. Pull only data from subproject. Pull all data from project if not specified. Special case is nosubproject, it pulls data not assigned to a specific subproject')
+    o_parser.add_argument('-pv', '--provenance', dest='provenance', default='/scratch2/groups/gsi/production/pr_refill_v2/provenance_reporter.json', help='Path to the json with production data. Default is /scratch2/groups/gsi/production/pr_refill_v2/provenance_reporter.json')
+    o_parser.add_argument('-nabu', '--nabu', dest='nabu', default='https://nabu.gsi.oicr.on.ca/case/sign-off', help='Nabu case signoff endpoint')
+    o_parser.add_argument('-nk', '--nabu_key', dest='nabu_key_file', default='/.mounts/labs/gsi/secrets/nabu-prod_case-etl_api-key', help='Path to the nabu key file. Default is /.mounts/labs/gsi/secrets/nabu-prod_qc-gate-etl_api-key')
     o_parser.add_argument('-c', '--cases', dest='cases', nargs = '*', help='List of cases')
     o_parser.add_argument('-cf', '--casefile', dest='casefile', help='File with list of cases')
     o_parser.add_argument('--release_signedoff', dest='signoff_only', action='store_true', help='Keep only cases with complete release signoff')
-    o_parser.add_argument('-nabu', '--nabu', dest='nabu', default='https://nabu.gsi.oicr.on.ca/case/sign-off', help='Nabu case signoff endpoint')
-    o_parser.add_argument('-nk', '--nabu_key', dest='nabu_key_file', default='/.mounts/labs/gsi/secrets/nabu-prod_case-etl_api-key', help='Path to the nabu key file. Default is /.mounts/labs/gsi/secrets/nabu-prod_qc-gate-etl_api-key')
+    o_parser.add_argument('-fpr', '--fpr', dest='fpr', default = '/scratch2/groups/gsi/production/vidarr/vidarr_files_report_latest.tsv.gz', help='Path to File Provenance Report. Default is /scratch2/groups/gsi/production/vidarr/vidarr_files_report_latest.tsv.gz')
+    o_parser.add_argument('-by', '--by', dest='by', choices = ['case', 'donor'], help='Organize data by case (from provenance_reporter.json) or by donor (from FPR)', required = True)
     o_parser.add_argument('-dt', '--data_type', dest='datatype', nargs= '*', choices = ['fastq', 'callready', 'analysis'], help='Restrict the data to sequences, analysis and/or call ready bams')
     o_parser.set_defaults(func=organize_data)
     
@@ -855,9 +1282,10 @@ if __name__ == '__main__':
     e_parser.add_argument('-gk', '--gsikey', dest='gsi_age_pub_key', default = '/.mounts/labs/gsi/secrets/GSI_AGE_PUB_KEY', help='Path to the GSI age public key. Default is /.mounts/labs/gsi/secrets/GSI_AGE_PUB_KEY')
     e_parser.add_argument('-ik', '--itkey', dest='it_age_pub_key', default = '/.mounts/labs/gsi/secrets/IT_AGE_PUB_KEY', help='Path to the IT age public key. Default is /.mounts/labs/gsi/secrets/IT_AGE_PUB_KEY')
     e_parser.add_argument('-m', '--memory', dest='memory', default = '20', help='Encryption job memory. Default is 20G')
-    e_parser.add_argument('-r', '--runtime', dest='runtime', default = '5', help='Encryption job runtime. Default is 5 hours')
+    e_parser.add_argument('-r', '--runtime', dest='runtime', default = '48', help='Encryption job runtime. Default is 48 hours')
     e_parser.add_argument('-c', '--cases', dest='cases', nargs = '*', help='List of cases')
     e_parser.add_argument('-cf', '--casefile', dest='casefile', help='File with list of cases')
+    e_parser.add_argument('-s', '--subproject', dest='subproject', help='Sub-project name')
     e_parser.set_defaults(func=encrypt_data)
         
     d_parser = subparsers.add_parser('decrypt', help="Decrypt data")
@@ -870,5 +1298,4 @@ if __name__ == '__main__':
     args = parser.parse_args()
     # pass the args to the default function
     args.func(args)
-    
     
